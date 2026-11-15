@@ -1,0 +1,460 @@
+/* BB 作业检查器 · 首页内嵌面板
+   设计语言：科大蓝导航 + 红绿灯状态语义（未完成=红 / 待评分=黄 / 已评分=绿）
+   命名空间 bb-hw-，避免与站点样式冲突。极简：点标题栏展开/收起，三个状态选项卡 + 刷新。 */
+
+#bb-hw-checker.bb-hw-panel {
+  all: initial;
+  display: block;
+  box-sizing: border-box;
+  --bb-ink: #1f2933;
+  --bb-muted: #6b7785;
+  --bb-line: #e7ecf3;
+  --bb-blue-deep: #0a3d91;
+  --bb-blue: #1661ab;
+  --bb-blue-bright: #2f7ae5;
+  --bb-red: #e03131;
+  --bb-red-deep: #c92a2a;
+  --bb-amber: #f08c00;
+  --bb-amber-deep: #e8590c;
+  --bb-green: #2f9e44;
+  --bb-slate: #868e96;
+  --bb-hover: #f3f8fd;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--bb-ink);
+  background: #ffffff;
+  border: 1px solid #d3dce8;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(10, 61, 145, 0.06), 0 8px 24px rgba(10, 61, 145, 0.10);
+  margin: 12px 14px 16px;
+  overflow: hidden;
+  animation: bb-hw-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes bb-hw-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#bb-hw-checker *,
+#bb-hw-checker *::before,
+#bb-hw-checker *::after { box-sizing: border-box; }
+
+/* ---------- 头部（整行可点击展开 / 收起） ---------- */
+#bb-hw-checker .bb-hw-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 14px;
+  color: #fff;
+  background: linear-gradient(100deg, #0a3d91 0%, #1661ab 48%, #2f7ae5 100%);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: filter 0.16s ease;
+}
+
+#bb-hw-checker .bb-hw-header:hover { filter: brightness(1.07); }
+#bb-hw-checker .bb-hw-header:active { filter: brightness(0.96); }
+#bb-hw-checker .bb-hw-header:focus-visible { outline: 2px solid #bcd6ff; outline-offset: -2px; }
+
+#bb-hw-checker .bb-hw-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 140% at 88% -40%, rgba(255, 255, 255, 0.28), transparent 55%),
+    radial-gradient(80% 120% at 0% 120%, rgba(10, 61, 145, 0.55), transparent 60%);
+  pointer-events: none;
+}
+
+#bb-hw-checker .bb-hw-titlewrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+#bb-hw-checker .bb-hw-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  flex: 0 0 auto;
+}
+
+#bb-hw-checker .bb-hw-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(10, 61, 145, 0.35);
+}
+
+/* 标题栏常驻「未完成」数（收起时也可见） */
+#bb-hw-checker .bb-hw-headcount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: #ff5a5f;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 6px rgba(201, 42, 42, 0.4);
+}
+#bb-hw-checker .bb-hw-headcount:empty { display: none; }
+#bb-hw-checker.bb-hw-has-overdue .bb-hw-headcount {
+  animation: bb-hw-count-pulse 2.4s ease-in-out infinite;
+}
+
+/* 展开/收起指示箭头：展开朝上，收起朝下 */
+#bb-hw-checker .bb-hw-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  opacity: 0.9;
+}
+#bb-hw-checker .bb-hw-chevron svg {
+  width: 15px;
+  height: 15px;
+  transform: rotate(180deg);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#bb-hw-checker.bb-hw-collapsed .bb-hw-chevron svg { transform: rotate(0deg); }
+
+#bb-hw-checker.bb-hw-has-overdue .bb-hw-tab-active .bb-hw-tab-count {
+  animation: bb-hw-count-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes bb-hw-count-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 95, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 90, 95, 0); }
+}
+
+#bb-hw-checker .bb-hw-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+#bb-hw-checker .bb-hw-btn {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding: 5px 11px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: background 0.16s ease, transform 0.12s ease, box-shadow 0.16s ease;
+}
+
+#bb-hw-checker .bb-hw-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+#bb-hw-checker .bb-hw-btn:active { transform: scale(0.95); }
+
+#bb-hw-checker .bb-hw-btn:focus-visible,
+#bb-hw-checker .bb-hw-name:focus-visible {
+  outline: 2px solid #bcd6ff;
+  outline-offset: 2px;
+}
+
+#bb-hw-checker .bb-hw-btn[disabled] { opacity: 0.7; cursor: default; }
+
+/* 刷新图标 + 读取中旋转 */
+#bb-hw-checker .bb-hw-refresh-icon {
+  width: 13px;
+  height: 13px;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+#bb-hw-checker.bb-hw-loading .bb-hw-refresh-icon {
+  animation: bb-hw-spin 0.9s linear infinite;
+}
+@keyframes bb-hw-spin { to { transform: rotate(360deg); } }
+
+/* ---------- 选项卡 ---------- */
+#bb-hw-checker .bb-hw-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, #f4f8fd 0%, #edf3fb 100%);
+  border-bottom: 1px solid var(--bb-line);
+}
+
+#bb-hw-checker .bb-hw-tab {
+  all: unset;
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--bb-muted);
+  white-space: nowrap;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
+}
+
+#bb-hw-checker .bb-hw-tab:hover { background: rgba(255, 255, 255, 0.8); color: var(--bb-blue); }
+#bb-hw-checker .bb-hw-tab:active { transform: scale(0.97); }
+#bb-hw-checker .bb-hw-tab:focus-visible { outline: 2px solid var(--bb-blue-bright); outline-offset: 2px; }
+
+#bb-hw-checker .bb-hw-tab-active,
+#bb-hw-checker .bb-hw-tab-active:hover {
+  background: linear-gradient(135deg, #1661ab 0%, #2f7ae5 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(22, 97, 171, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  text-shadow: 0 1px 2px rgba(10, 61, 145, 0.3);
+}
+
+#bb-hw-checker .bb-hw-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: #dbe7f5;
+  color: var(--bb-blue);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+#bb-hw-checker .bb-hw-tab-count:empty { display: none; }
+
+/* 选项卡计数按状态着色：未完成红 / 已评分绿 / 待评分黄（未选中时） */
+#bb-hw-checker .bb-hw-tab-todo .bb-hw-tab-count { background: #ffe3e3; color: #c92a2a; }
+#bb-hw-checker .bb-hw-tab-graded .bb-hw-tab-count { background: #d3f9d8; color: #2b8a3e; }
+#bb-hw-checker .bb-hw-tab-submitted .bb-hw-tab-count { background: #fff3bf; color: #9c6f00; }
+
+#bb-hw-checker .bb-hw-tab-active .bb-hw-tab-count {
+  background: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+
+/* ---------- 折叠动画（grid 行高过渡） ---------- */
+#bb-hw-checker .bb-hw-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#bb-hw-checker.bb-hw-collapsed .bb-hw-collapse { grid-template-rows: 0fr; }
+
+#bb-hw-checker .bb-hw-body {
+  overflow: hidden;
+  min-height: 0;
+}
+
+#bb-hw-checker .bb-hw-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(22, 97, 171, 0.4) transparent;
+}
+
+/* 自定义滚动条（取自面板配色） */
+#bb-hw-checker .bb-hw-list::-webkit-scrollbar { width: 8px; }
+#bb-hw-checker .bb-hw-list::-webkit-scrollbar-track { background: transparent; }
+#bb-hw-checker .bb-hw-list::-webkit-scrollbar-thumb {
+  background: rgba(22, 97, 171, 0.28);
+  border-radius: 4px;
+}
+#bb-hw-checker .bb-hw-list::-webkit-scrollbar-thumb:hover { background: rgba(22, 97, 171, 0.5); }
+
+/* ---------- 作业行 ---------- */
+#bb-hw-checker .bb-hw-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--bb-line);
+  border-left: 4px solid transparent;
+  transition: background 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+#bb-hw-checker .bb-hw-item:last-child { border-bottom: none; }
+
+#bb-hw-checker .bb-hw-item:hover {
+  background: var(--bb-hover);
+  transform: translateX(2px);
+  box-shadow: inset 0 0 0 1px rgba(22, 97, 171, 0.06);
+}
+
+/* 未完成 = 需要行动 = 红色系（逾期最深并脉冲，临近橙，待交红，无截止灰） */
+#bb-hw-checker .bb-hw-overdue { border-left-color: var(--bb-red-deep); background: #fff0f0; }
+#bb-hw-checker .bb-hw-overdue:hover { background: #ffe3e3; }
+#bb-hw-checker .bb-hw-soon { border-left-color: var(--bb-amber-deep); background: #fff4e6; }
+#bb-hw-checker .bb-hw-soon:hover { background: #ffe8cc; }
+#bb-hw-checker .bb-hw-normal { border-left-color: var(--bb-red); background: #fff5f5; }
+#bb-hw-checker .bb-hw-normal:hover { background: #ffecec; }
+#bb-hw-checker .bb-hw-nodue { border-left-color: var(--bb-slate); }
+
+#bb-hw-checker .bb-hw-badge {
+  flex: 0 0 auto;
+  min-width: 46px;
+  text-align: center;
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #fff;
+  background: var(--bb-slate);
+}
+
+#bb-hw-checker .bb-hw-overdue .bb-hw-badge {
+  background: linear-gradient(135deg, #c92a2a, #a61e1e);
+  animation: bb-hw-badge-pulse 2.6s ease-in-out infinite;
+}
+#bb-hw-checker .bb-hw-soon .bb-hw-badge { background: linear-gradient(135deg, #f08c00, #e8590c); }
+#bb-hw-checker .bb-hw-normal .bb-hw-badge { background: linear-gradient(135deg, #fa5252, #e03131); }
+#bb-hw-checker .bb-hw-nodue .bb-hw-badge { background: linear-gradient(135deg, #969fa8, #868e96); }
+
+/* 已评分 = 绿（完成）；待评分 = 黄（等待老师批改） */
+#bb-hw-checker .bb-hw-graded { border-left-color: var(--bb-green); }
+#bb-hw-checker .bb-hw-submitted { border-left-color: #f08c00; background: #fffdf2; }
+#bb-hw-checker .bb-hw-submitted:hover { background: #fff9db; }
+#bb-hw-checker .bb-hw-badge-graded { background: linear-gradient(135deg, #37b24d, #2f9e44); }
+#bb-hw-checker .bb-hw-badge-submitted { background: linear-gradient(135deg, #ffd43b, #fab005); color: #5c3d00; }
+#bb-hw-checker .bb-hw-graded .bb-hw-delta { color: var(--bb-green); }
+#bb-hw-checker .bb-hw-submitted .bb-hw-delta { color: #b07d00; }
+
+@keyframes bb-hw-badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224, 49, 49, 0.4); }
+  50% { box-shadow: 0 0 0 5px rgba(224, 49, 49, 0); }
+}
+
+#bb-hw-checker .bb-hw-main { flex: 1 1 auto; min-width: 0; }
+
+#bb-hw-checker .bb-hw-name {
+  display: block;
+  color: var(--bb-blue);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+#bb-hw-checker .bb-hw-name:hover { color: var(--bb-blue-bright); text-decoration: underline; }
+#bb-hw-checker .bb-hw-overdue .bb-hw-name { color: var(--bb-red-deep); }
+#bb-hw-checker .bb-hw-overdue .bb-hw-name:hover { color: var(--bb-red); }
+
+#bb-hw-checker .bb-hw-course {
+  margin-top: 2px;
+  color: var(--bb-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#bb-hw-checker .bb-hw-due { flex: 0 0 auto; text-align: right; min-width: 138px; }
+
+#bb-hw-checker .bb-hw-ddl {
+  font-size: 13px;
+  color: #333;
+  font-variant-numeric: tabular-nums;
+}
+
+#bb-hw-checker .bb-hw-delta { margin-top: 2px; font-size: 12px; color: var(--bb-muted); font-variant-numeric: tabular-nums; }
+#bb-hw-checker .bb-hw-overdue .bb-hw-delta { color: var(--bb-red-deep); font-weight: 700; }
+#bb-hw-checker .bb-hw-soon .bb-hw-delta { color: var(--bb-amber-deep); font-weight: 700; }
+#bb-hw-checker .bb-hw-normal .bb-hw-delta { color: var(--bb-red); font-weight: 600; }
+
+/* ---------- 提示 / 空态 / 校准 ---------- */
+#bb-hw-checker .bb-hw-note { padding: 16px 14px; color: var(--bb-muted); font-size: 13px; }
+#bb-hw-checker .bb-hw-ok { color: var(--bb-green); font-weight: 600; }
+#bb-hw-checker .bb-hw-warn { color: var(--bb-red); font-weight: 600; }
+
+#bb-hw-checker .bb-hw-calib { padding: 0 14px 14px; }
+#bb-hw-checker .bb-hw-calib .bb-hw-btn {
+  background: #eef2f7;
+  color: var(--bb-blue);
+  box-shadow: inset 0 0 0 1px #d3dce8;
+  margin-top: 4px;
+}
+#bb-hw-checker .bb-hw-calib .bb-hw-btn:hover { background: #dfe7f0; }
+
+/* ---------- 读取中骨架屏 ---------- */
+#bb-hw-checker .bb-hw-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--bb-line);
+}
+#bb-hw-checker .bb-hw-sk {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #eef1f5 25%, #f7f9fc 37%, #eef1f5 63%);
+  background-size: 400% 100%;
+  animation: bb-hw-shimmer 1.3s ease infinite;
+}
+#bb-hw-checker .bb-hw-sk-badge { width: 46px; height: 20px; flex: 0 0 auto; }
+#bb-hw-checker .bb-hw-sk-main { flex: 1 1 auto; }
+#bb-hw-checker .bb-hw-sk-name { width: 60%; height: 13px; margin-bottom: 7px; }
+#bb-hw-checker .bb-hw-sk-course { width: 35%; height: 10px; }
+#bb-hw-checker .bb-hw-sk-due { width: 110px; height: 13px; flex: 0 0 auto; }
+@keyframes bb-hw-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 560px) {
+  #bb-hw-checker .bb-hw-item { flex-wrap: wrap; }
+  #bb-hw-checker .bb-hw-due { text-align: left; min-width: 0; width: 100%; padding-left: 58px; }
+  #bb-hw-checker .bb-hw-tabs { gap: 3px; padding: 6px; }
+  #bb-hw-checker .bb-hw-tab { font-size: 12px; padding: 6px 4px; gap: 4px; }
+}
+
+/* ---------- 降低动效偏好 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #bb-hw-checker,
+  #bb-hw-checker *,
+  #bb-hw-checker *::before,
+  #bb-hw-checker *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

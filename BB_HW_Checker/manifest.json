@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "USTC BB 作业检查器",
+  "version": "2.0.0",
+  "description": "在中科大网络教学平台(BB)首页直接展示未完成与逾期作业：名称、截止日期、倒计时。复用已登录会话，不后台、不弹窗、不定时。",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.bb.ustc.edu.cn/*",
+        "https://bb.ustc.edu.cn/*"
+      ],
+      "js": [
+        "content/util.js",
+        "content/parser.js",
+        "content/bb-inject.js"
+      ],
+      "css": [
+        "content/bb-inject.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}

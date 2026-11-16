@@ -1,8 +1,9 @@
-var VERSION = 'tao-table-v7';
+var VERSION = 'tao-table-v9';
 var ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './ustc-timetable.user.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png'
@@ -53,6 +54,19 @@ self.addEventListener('fetch', function (e) {
       );
       return;
     }
+  }
+
+  if (url.pathname.slice(-8) === '.user.js') {
+    e.respondWith(
+      fetch(req).then(function (res) {
+        if (res && res.ok) {
+          var copy = res.clone();
+          caches.open(VERSION).then(function (c) { c.put(req, copy); });
+        }
+        return res;
+      }).catch(function () { return caches.match(req); })
+    );
+    return;
   }
 
   e.respondWith(

@@ -1,11 +1,11 @@
 {
   "name": "小桃课表 · 离线课程表",
   "short_name": "小桃课表",
-  "description": "完全离线的课程表：数据只存本机，添加到主屏幕即可像 App 一样使用。",
+  "description": "完全离线的课程表：数据只存本机，添加到主屏幕一键打开。",
   "id": "./",
   "start_url": "./",
   "scope": "./",
-  "display": "standalone",
+  "display": "browser",
   "orientation": "portrait-primary",
   "lang": "zh-CN",
   "theme_color": "#232C4E",

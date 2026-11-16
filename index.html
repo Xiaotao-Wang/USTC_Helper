@@ -35,11 +35,11 @@
   --danger:#FF6B6B; --ok:#4ADE80; --now:#FF5A5F; --amber:#FFB224;
   --shadow:0 12px 32px rgba(0,0,0,.5); --shadow-sm:0 3px 10px rgba(0,0,0,.4);
 }
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation}
 [hidden]{display:none !important}
-html{background:var(--bg)}
+html{background:var(--bg);touch-action:manipulation}
 html,body{height:100%}
-body{
+body{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   font-family:var(--sans); color:var(--ink); background:var(--bg);
   -webkit-font-smoothing:antialiased; overflow:hidden;
   transition:background .35s,color .35s;
@@ -379,6 +379,13 @@ input,select,textarea{font-family:inherit;color:inherit}
 .imp-intro{display:flex;gap:11px;align-items:flex-start;background:color-mix(in srgb,var(--cat-core) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--cat-core) 30%,transparent);border-radius:13px;padding:12px 14px;font-size:12px;line-height:1.75;margin-bottom:14px}
 .imp-intro svg{width:20px;height:20px;flex:none;margin-top:2px;stroke:var(--cat-core);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .imp-intro b{color:var(--cat-core)}
+.imp-go{display:block;width:100%;text-align:center;text-decoration:none;border-radius:13px;padding:13px 14px;margin-bottom:6px;
+  background:linear-gradient(120deg,var(--amber),color-mix(in srgb,var(--amber) 55%,var(--now)));color:var(--navy2);
+  font-size:14.5px;font-weight:800;letter-spacing:.02em;box-shadow:0 8px 22px color-mix(in srgb,var(--amber) 40%,transparent);
+  transition:transform .15s,filter .15s}
+.imp-go:active{transform:scale(.97);filter:brightness(1.06)}
+.imp-go small{display:block;font-size:10.5px;font-weight:600;opacity:.82;margin-top:3px;letter-spacing:0}
+.imp-go-note{font-size:10.5px;color:var(--ink2);line-height:1.6;margin:0 2px 12px}
 .imp-tabs{display:flex;background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:3px;margin-bottom:14px}
 .imp-tabs button{flex:1;font-size:12px;font-weight:600;padding:8px 0;border-radius:8px;color:var(--ink2);transition:all .18s}
 .imp-tabs button.on{background:var(--navy);color:var(--bg);box-shadow:var(--shadow-sm)}
@@ -500,7 +507,7 @@ input,select,textarea{font-family:inherit;color:inherit}
       var cats={all:1,core:1,major:1,lab:1,sci:1,lang:1,sport:1};
       var cat=(u&&cats[u.cat])?u.cat:'all';
       var uday=Math.max(1,Math.min(7,(u&&parseInt(u.day,10))||1));
-      var sig={f:4,d:day,w:week,v:view,c:cat,q:'',day:uday,ver:+(localStorage.getItem('tao-table-ver')||0)};
+      var sig={f:5,d:day,w:week,v:view,c:cat,q:'',day:uday,ver:+(localStorage.getItem('tao-table-ver')||0)};
       if(JSON.stringify(sig)===JSON.stringify(snap.sig)){
         document.documentElement.dataset.theme=snap.theme==='night'?'night':'paper';
         var mc=document.querySelector('meta[name=theme-color]');
@@ -603,14 +610,38 @@ input,select,textarea{font-family:inherit;color:inherit}
     <div id="impSource">
       <div class="imp-intro">
         <svg viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
-        <div><b>只需联网一次，之后整学期离线。</b><br>浏览器安全限制不允许本网页直接登录教务系统抓课表。正确做法：你在浏览器里用统一身份认证登录教务系统，把课表「导出」过来导入这里。<b>本网页全程不接触你的账号密码</b>，导入后数据只存本机。</div>
+        <div><b>只需联网一次，之后整学期离线。</b><br>浏览器安全限制不允许本网页直接登录教务系统抓课表。正确做法：你在浏览器里用统一身份认证登录教务系统，让脚本把课表一键回传导入这里。<b>本网页全程不接触你的账号密码</b>，导入后数据只存本机。</div>
       </div>
+      <a class="imp-go" id="impGoJw" href="https://jw.ustc.edu.cn/for-std/course-table" target="_blank" rel="noopener">打开教务系统 · 登录后一键回传<small>统一身份认证登录 → 课表页 → 点右下角橙色按钮，自动跳回本页完成导入</small></a>
+      <div class="imp-go-note">首次使用需装一次回传脚本（见下方「一键回传」）；装好后每学期只点上面这一个入口。跳回本页时课表自动导入，可撤销。</div>
       <div class="imp-tabs" id="impTabs">
-        <button data-tab="paste" class="on">粘贴表格</button>
+        <button data-tab="auto" class="on">一键回传</button>
         <button data-tab="file">上传文件</button>
-        <button data-tab="script">一键脚本</button>
+        <button data-tab="paste">粘贴表格</button>
       </div>
-      <div class="imp-pane" id="impPanePaste">
+      <div class="imp-pane" id="impPaneAuto">
+        <ol class="imp-steps">
+          <li>装一次脚本：iPhone 在 App Store 装免费开源的 <code>Userscripts</code>，到 Safari「扩展」里启用，再点下方「下载 .user.js」导入；电脑 / 安卓用 <code>Tampermonkey</code>（油猴）。</li>
+          <li>点上方「打开教务系统」，统一身份认证登录，进入课表页。</li>
+          <li>点页面右下角橙色按钮 <code>一键回传小桃课表</code>：脚本读好课表后自动跳回本页并完成导入，不用粘贴、不用选文件。</li>
+        </ol>
+        <textarea class="imp-area mono" id="impScript" readonly spellcheck="false" aria-label="回传脚本源码"></textarea>
+        <div class="imp-actions">
+          <button class="btn btn-ghost btn-sm" id="impCopyScript">复制脚本</button>
+          <button class="btn btn-ghost btn-sm" id="impDlScript">下载 .user.js</button>
+          <button class="btn btn-ghost btn-sm" id="impCopyBm">复制书签工具</button>
+        </div>
+        <div class="s-note">脚本回传时会同时下载一份 <code>ustc-timetable.json</code> 兜底：若自动跳回被浏览器拦截，到「上传文件」选它一次即可。</div>
+      </div>
+      <div class="imp-pane" id="impPaneFile" hidden>
+        <div class="imp-drop" id="impDrop">
+          <svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+          <div>点击选择或拖入文件<br><small>支持 .json 备份 / .html 网页 / .txt / .csv</small></div>
+        </div>
+        <input type="file" id="impFile" accept=".json,.html,.htm,.txt,.csv,application/json,text/html,text/plain" hidden>
+        <div class="imp-msg" id="impMsgFile" hidden></div>
+      </div>
+      <div class="imp-pane" id="impPanePaste" hidden>
         <ol class="imp-steps">
           <li>浏览器登录 <a href="https://jw.ustc.edu.cn/" target="_blank" rel="noopener">jw.ustc.edu.cn</a>（新版综合教务，统一身份认证）或 <a href="https://mis.teach.ustc.edu.cn/" target="_blank" rel="noopener">mis.teach.ustc.edu.cn</a>（旧版「课表查询」）。</li>
           <li>打开「我的课表 / 选课结果 / 本学期课表」，用鼠标选中整张课表表格，<code>Ctrl/⌘+C</code> 复制。</li>
@@ -622,29 +653,6 @@ input,select,textarea{font-family:inherit;color:inherit}
           <button class="btn btn-ghost btn-sm" id="impClip">读取剪贴板</button>
           <button class="btn btn-sm" id="impParse">解析课表</button>
         </div>
-      </div>
-      <div class="imp-pane" id="impPaneFile" hidden>
-        <div class="imp-drop" id="impDrop">
-          <svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
-          <div>点击选择或拖入文件<br><small>支持 .json 备份 / .html 网页 / .txt / .csv</small></div>
-        </div>
-        <input type="file" id="impFile" accept=".json,.html,.htm,.txt,.csv,application/json,text/html,text/plain" hidden>
-        <div class="imp-msg" id="impMsgFile" hidden></div>
-      </div>
-      <div class="imp-pane" id="impPaneScript" hidden>
-        <ol class="imp-steps">
-          <li>安装浏览器扩展 <code>Tampermonkey</code>（油猴）。</li>
-          <li>点「下载脚本」安装，或「复制脚本」后在油猴新建脚本粘贴保存。</li>
-          <li>登录教务系统打开课表页，右下角出现 <code>导出课表 → 小桃</code> 按钮，点它。</li>
-          <li>回本页「粘贴表格」粘贴（脚本已自动复制），或「上传文件」选下载的 <code>ustc-timetable.json</code>。</li>
-        </ol>
-        <textarea class="imp-area mono" id="impScript" readonly spellcheck="false" aria-label="油猴脚本源码"></textarea>
-        <div class="imp-actions">
-          <button class="btn btn-ghost btn-sm" id="impCopyScript">复制脚本</button>
-          <button class="btn btn-ghost btn-sm" id="impDlScript">下载 .user.js</button>
-          <button class="btn btn-ghost btn-sm" id="impCopyBm">复制书签工具</button>
-        </div>
-        <div class="s-note">不想装扩展？用「书签工具」：新建一个浏览器书签，把复制的内容填进网址栏，在课表页点一下即可导出。</div>
       </div>
     </div>
     <div id="impPreview" hidden>
@@ -676,10 +684,10 @@ input,select,textarea{font-family:inherit;color:inherit}
 
 <script type="text/plain" id="ustcUserScript">
 // ==UserScript==
-// @name         USTC 课表导出 → 小桃课表
+// @name         USTC 课表一键回传 → 小桃课表
 // @namespace    tao-table
-// @version      1.1.0
-// @description  在科大教务系统课表页面一键导出课表表格，导入「小桃课表」离线使用。不读取账号密码。
+// @version      2.0.0
+// @description  在科大教务系统课表页面一键读取课表并自动回传「小桃课表」离线使用。不读取账号密码。
 // @match        *://jw.ustc.edu.cn/*
 // @match        *://mis.teach.ustc.edu.cn/*
 // @match        *://*.ustc.edu.cn/*
@@ -688,6 +696,7 @@ input,select,textarea{font-family:inherit;color:inherit}
 // ==/UserScript==
 (function () {
   'use strict';
+  var APP = 'https://xiaotao-wang.github.io/USTC_Helper/';
   function dayish(t) { return /(星期|周|礼拜)[一二三四五六日天]/.test(t || ''); }
   function score(tb) {
     var rows = tb.rows; if (!rows || rows.length < 2) return 0;
@@ -729,32 +738,63 @@ input,select,textarea{font-family:inherit;color:inherit}
     var w = bt.match(/总周数[:：]\s*(\d+)/); if (w) meta.totalWeeks = parseInt(w[1], 10);
     return meta;
   }
-  function exportNow() {
-    var list = findTables();
-    if (!list.length) { alert('未在本页检测到课表表格。\n请先打开「我的课表 / 选课结果 / 课表查询」页面，等表格显示后再点本按钮。'); return; }
-    var html = list.slice(0, 3).map(function (x) { return x.tb.outerHTML; }).join('\n');
-    var payload = JSON.stringify({ format: 'tao-ustc-html', title: document.title, url: location.href, html: html, meta: pageMeta() });
+  function cleanHTML(h) {
+    return h.replace(/\s(?:style|class|width|height|align|valign|bgcolor)="[^"]*"/gi, '').replace(/>\s+</g, '><');
+  }
+  function b64url(bytes) {
+    var s = '', i;
+    for (i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function deflate(bytes) {
+    if (typeof CompressionStream === 'undefined') return Promise.resolve(null);
+    return new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw')))
+      .arrayBuffer().then(function (buf) { return new Uint8Array(buf); }, function () { return null; });
+  }
+  function download(text) {
     try {
-      var blob = new Blob([payload], { type: 'application/json' });
+      var blob = new Blob([text], { type: 'application/json' });
       var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ustc-timetable.json';
       document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function () { URL.revokeObjectURL(a.href); }, 3000);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
     } catch (e) {}
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(payload).then(
-        function () { toast('已复制课表并下载 ustc-timetable.json。打开「小桃课表」→ 导入 → 粘贴即可。'); },
-        function () { toast('已下载 ustc-timetable.json。打开「小桃课表」→ 导入 → 上传文件即可。'); }
-      );
-    } else { toast('已下载 ustc-timetable.json。打开「小桃课表」→ 导入 → 上传文件即可。'); }
+  }
+  function returnNow() {
+    var list = findTables();
+    if (!list.length) { alert('未在本页检测到课表表格。\n请先打开「我的课表 / 选课结果 / 课表查询」页面，等表格显示后再点本按钮。'); return; }
+    var html = cleanHTML(list.slice(0, 3).map(function (x) { return x.tb.outerHTML; }).join('\n'));
+    var p = JSON.stringify({ format: 'tao-ustc-html', title: document.title, url: location.href, html: html, meta: pageMeta() });
+    download(p);
+    var bytes = new TextEncoder().encode(p);
+    deflate(bytes).then(function (dz) {
+      var hash = dz ? '#tao=' + b64url(dz) : '#tao64=' + b64url(bytes);
+      if (hash.length > 60000) {
+        toast('课表较大：已下载 ustc-timetable.json。到小桃课表 → 导入 → 上传文件 选它一次即可。');
+        setTimeout(function () { location.href = APP + '#taoFile=1'; }, 1500);
+        return;
+      }
+      toast('读取完成，正在跳回小桃课表…');
+      setTimeout(function () { location.href = APP + hash; }, 700);
+    });
+  }
+  function refresh() {
+    var b = document.getElementById('tao-export-btn');
+    if (!b) return;
+    var has = findTables().length > 0;
+    var label = has ? '一键回传小桃课表' : '打开我的课表';
+    if (b.textContent !== label) b.textContent = label;
+    b.onclick = has ? returnNow : function () { location.href = 'https://jw.ustc.edu.cn/for-std/course-table'; };
   }
   function addButton() {
     if (document.getElementById('tao-export-btn') || !document.body) return;
-    var b = document.createElement('button'); b.id = 'tao-export-btn'; b.textContent = '导出课表 → 小桃';
+    var b = document.createElement('button'); b.id = 'tao-export-btn';
     b.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:2147483647;background:#E8930C;color:#1A2140;border:0;border-radius:99px;padding:12px 18px;font:700 14px system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 20px rgba(232,147,12,.5)';
-    b.onclick = exportNow; document.body.appendChild(b);
+    document.body.appendChild(b); refresh();
   }
+  var rt = null;
+  function queueRefresh() { clearTimeout(rt); rt = setTimeout(refresh, 300); }
   addButton();
-  if (window.MutationObserver) new MutationObserver(addButton).observe(document.documentElement, { childList: true, subtree: true });
+  if (window.MutationObserver) new MutationObserver(function () { addButton(); queueRefresh(); }).observe(document.documentElement, { childList: true, subtree: true });
 })();
 </script>
 
@@ -1020,7 +1060,7 @@ function renderDay(){
 }
 
 /* ---------- render all ---------- */
-function bootSig(){return {f:4,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,ver:ver()}}
+function bootSig(){return {f:5,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,ver:ver()}}
 function saveSnapshot(){
   try{localStorage.setItem(SNAPKEY,JSON.stringify({sig:bootSig(),theme:settings().theme,app:$('.app').innerHTML}))}catch(e){}
 }
@@ -1506,14 +1546,14 @@ function ustcWeekSegments(wstr){
 function parseUstcSchedule(sched,fallbackTeacher){
   var meetings=[];
   if(!sched||!sched.trim())return meetings;
-  var wre=/((?:\d+(?:[~\-–—]\d+)?)(?:[（(][单双][)）])?(?:[,，](?:\d+(?:[~\-–—]\d+)?)(?:[（(][单双][)）])?)*)周/g;
+  var wre=/((?:\d+(?:[~\-–—]\d+)?)(?:[（(][单双][)）])?(?:[,，](?:\d+(?:[~\-–—]\d+)?)(?:[（(][单双][)）])?)*周(?:[（(][单双][)）])?)/g;
   var ms=[],m;
   while((m=wre.exec(sched))!==null)ms.push({token:m[1],index:m.index});
   for(var i=0;i<ms.length;i++){
     var end=i+1<ms.length?ms[i+1].index:sched.length;
     var chunk=sched.slice(ms[i].index,end);
     var wi=chunk.indexOf('周');if(wi<0)continue;
-    var after=chunk.slice(wi+1);
+    var after=chunk.slice(wi+1).replace(/^\s*[（(][单双][)）]/,'');
     var ds=after.match(/[:：]\s*(\d)\s*[（(]([\d,，\s]+)[)）]/);
     if(!ds)continue;
     var day=clamp(parseInt(ds[1],10),1,7);
@@ -1604,7 +1644,7 @@ function parseTimetable(input){
 /* ---------- USTC import: wizard ---------- */
 var impCourses=[],impWarnings=[],impPasteHtml='',impMode='replace',impSourceLabel='';
 var USTC_SCRIPT=$('#ustcUserScript')?$('#ustcUserScript').textContent.trim():'';
-var BOOKMARKLET="javascript:(function(){function d(t){return /(星期|周|礼拜)[一二三四五六日天]/.test(t||'')}var ts=[].slice.call(document.querySelectorAll('table'));try{[].slice.call(document.querySelectorAll('iframe')).forEach(function(f){if(f.contentDocument)ts=ts.concat([].slice.call(f.contentDocument.querySelectorAll('table')))})}catch(e){}var best=null,bs=0;ts.forEach(function(tb){if(!tb.rows||tb.rows.length<2)return;var h=tb.rows[0],days=0,cells=0,i,r;for(i=0;i<h.cells.length;i++)if(d(h.cells[i].textContent))days++;for(r=0;r<tb.rows.length;r++)cells+=tb.rows[r].cells.length;var s=days>=2?days*1000+cells:(/课程|教师|教室|节次/.test(tb.textContent||'')&&cells>30?cells:0);if((tb.textContent||'').indexOf('日期时间地点人员')>=0)s=1000000+cells;if(s>bs){bs=s;best=tb}});if(!best){alert('未检测到课表表格，请先打开课表页面');return}var p=JSON.stringify({format:'tao-ustc-html',title:document.title,url:location.href,html:best.outerHTML});try{var b=new Blob([p],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ustc-timetable.json';document.body.appendChild(a);a.click();a.remove()}catch(e){}if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(p);alert('已导出课表。打开小桃课表 → 导入 → 粘贴，或上传 ustc-timetable.json');})();";
+var BOOKMARKLET="javascript:(function(){var APP='https://xiaotao-wang.github.io/USTC_Helper/';function d(t){return /(星期|周|礼拜)[一二三四五六日天]/.test(t||'')}var ts=[].slice.call(document.querySelectorAll('table'));try{[].slice.call(document.querySelectorAll('iframe')).forEach(function(f){if(f.contentDocument)ts=ts.concat([].slice.call(f.contentDocument.querySelectorAll('table')))})}catch(e){}var best=null,bs=0;ts.forEach(function(tb){if(!tb.rows||tb.rows.length<2)return;var h=tb.rows[0],days=0,cells=0,i,r;for(i=0;i<h.cells.length;i++)if(d(h.cells[i].textContent))days++;for(r=0;r<tb.rows.length;r++)cells+=tb.rows[r].cells.length;var s=days>=2?days*1000+cells:(/课程|教师|教室|节次/.test(tb.textContent||'')&&cells>30?cells:0);if((tb.textContent||'').indexOf('日期时间地点人员')>=0)s=1000000+cells;if(s>bs){bs=s;best=tb}});if(!best){alert('未检测到课表表格，请先打开课表页面');return}var html=best.outerHTML.replace(/\\s(?:style|class|width|height|align|valign|bgcolor)=\"[^\"]*\"/gi,'').replace(/>\\s+</g,'><');var p=JSON.stringify({format:'tao-ustc-html',title:document.title,url:location.href,html:html});try{var b=new Blob([p],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ustc-timetable.json';document.body.appendChild(a);a.click();a.remove()}catch(e){}function b64(u){var s='',i;for(i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'')}var bytes=new TextEncoder().encode(p);function go(h){location.href=APP+h}if(typeof CompressionStream==='undefined'){go('#tao64='+b64(bytes));return}new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer().then(function(buf){var h='#tao='+b64(new Uint8Array(buf));if(h.length>60000){alert('课表较大：已下载 ustc-timetable.json，到小桃课表 → 导入 → 上传文件 选它一次');go('#taoFile=1')}else go(h)},function(){go('#tao64='+b64(bytes))});})();";
 function showImpMsg(m){var el=$('#impPaneFile').hidden?$('#impMsg'):$('#impMsgFile');el.textContent=m;el.hidden=false;}
 function resetImpWizard(){
   impCourses=[];impWarnings=[];impPasteHtml='';impMode='replace';
@@ -1615,11 +1655,11 @@ function resetImpWizard(){
 }
 function setImpTab(name){
   $$('#impTabs button').forEach(function(b){b.classList.toggle('on',b.dataset.tab===name)});
-  $('#impPanePaste').hidden=name!=='paste';$('#impPaneFile').hidden=name!=='file';$('#impPaneScript').hidden=name!=='script';
+  $('#impPaneAuto').hidden=name!=='auto';$('#impPaneFile').hidden=name!=='file';$('#impPanePaste').hidden=name!=='paste';
   $('#impMsg').hidden=true;$('#impMsgFile').hidden=true;
-  if(name==='script')$('#impScript').value=USTC_SCRIPT;
+  if(name==='auto')$('#impScript').value=USTC_SCRIPT;
 }
-function openImport(tab){resetImpWizard();setImpTab(tab||'paste');openSheet('#importSheet');}
+function openImport(tab){resetImpWizard();setImpTab(tab||'auto');openSheet('#importSheet');}
 function renderImpList(){
   var html='';
   impCourses.forEach(function(c,i){
@@ -1704,8 +1744,8 @@ function fallbackCopy(t,msg){
   try{document.execCommand('copy');toast(msg);}catch(e){toast('复制失败，请手动全选文本复制');}
   ta.remove();
 }
-$('#importBtn').addEventListener('click',function(){openImport('paste')});
-$('#sUstc').addEventListener('click',function(){openImport('paste')});
+$('#importBtn').addEventListener('click',function(){openImport('auto')});
+$('#sUstc').addEventListener('click',function(){openImport('auto')});
 $('#impTabs').addEventListener('click',function(e){var b=e.target.closest('button');if(b)setImpTab(b.dataset.tab);});
 $('#impParse').addEventListener('click',function(){doParse(impPasteHtml||$('#impPaste').value);});
 $('#impPaste').addEventListener('paste',function(e){var h=e.clipboardData&&e.clipboardData.getData('text/html');impPasteHtml=h||'';});
@@ -1765,14 +1805,42 @@ $('#impConfirm').addEventListener('click',function(){
   state=sanitize(state)||state;
   persist();viewWeek=clamp(currentWeek(),1,weeks);
   closeSheets();renderAll();
-  var added=incoming.length,mode=impMode;
-  toast('已导入 '+added+' 节课'+(mode==='merge'?'（合并追加）':''),'撤销',function(){
+  var added=incoming.length,mode=impMode,auto=window.__autoImp===true;
+  window.__autoImp=false;
+  toast((auto?'教务回传：':'')+'已导入 '+added+' 节课'+(mode==='merge'?'（合并追加）':''),'撤销',function(){
     state=prev;persist();viewWeek=clamp(currentWeek(),1,settings().totalWeeks);renderAll();toast('已撤销导入');
   });
   resetImpWizard();
 });
 window.__taoParse=parseTimetable;
 window.__taoImp={get:function(){return impCourses},parse:doParse,open:openImport};
+
+/* ---------- 教务一键回传：网址带 #tao= 压缩数据时自动导入 ---------- */
+function b64ToBytes(s){
+  s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';
+  var bin=atob(s),u=new Uint8Array(bin.length),i;
+  for(i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  return u;
+}
+function inflateText(bytes){
+  if(typeof DecompressionStream==='undefined')return Promise.reject(new Error('unsupported'));
+  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+}
+function receiveHash(){
+  var h=location.hash||'';
+  if(h!=='#taoFile=1'&&h.indexOf('#tao=')!==0&&h.indexOf('#tao64=')!==0)return false;
+  try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+  if(h==='#taoFile=1'){openImport('file');toast('脚本已下载课表文件，在这里选 ustc-timetable.json');return true;}
+  var bytes;
+  try{bytes=b64ToBytes(h.slice(h.indexOf('=')+1));}catch(e){openImport('file');toast('回传数据无效，已改用文件导入');return true;}
+  var pre=h.indexOf('#tao=')===0?inflateText(bytes):Promise.resolve(new TextDecoder().decode(bytes));
+  pre.then(function(text){
+    doParse(text);
+    if(impCourses.length){window.__autoImp=true;$('#impConfirm').click();}
+    else{openImport('file');toast('回传内容未识别，请选脚本下载的文件');}
+  },function(){openImport('file');toast('此浏览器不支持解压回传数据，请在「上传文件」选 ustc-timetable.json');});
+  return true;
+}
 
 /* ---------- toast ---------- */
 var toastTimer=null;
@@ -1845,7 +1913,9 @@ setInterval(function(){updateNow();renderNext()},30000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden){updateNow();renderNext()}});
 buildEditorStatics();
 applyTheme(settings().theme);
-var snapHit=window.__snapHit===true;
+var hashHandled=receiveHash();
+window.addEventListener('hashchange',receiveHash);
+var snapHit=window.__snapHit===true&&!hashHandled;
 renderAll(snapHit);
 window.__renderSkipped=snapHit;
 scrollToToday();

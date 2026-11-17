@@ -509,7 +509,7 @@ input,select,textarea{font-family:inherit;color:inherit}
         <button class="btn btn-ghost btn-sm" id="busAllBtn" style="flex:1">全部班次</button>
         <button class="btn btn-ghost btn-sm" id="busRevBtn" style="flex:1">反向查询</button>
       </div>
-      <div class="bus-note">★ 为节假日仍开行班次；高新校区线双休按节假日表。到达时间为预计。不含太湖路园区。</div>
+      <div class="bus-note">★ 为节假日仍开行班次；高新校区线双休按节假日表。到达时间为预计。仅东区 / 西区 / 高新校区，不含南区、先研院、太湖路。</div>
     </section>
   </main>
   <button class="fab" id="fab" aria-label="添加课程"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -539,7 +539,7 @@ input,select,textarea{font-family:inherit;color:inherit}
       var cats={all:1,core:1,major:1,lab:1,sci:1,lang:1,sport:1};
       var cat=(u&&cats[u.cat])?u.cat:'all';
       var uday=Math.max(1,Math.min(7,(u&&parseInt(u.day,10))||1));
-      var sig={f:13,d:day,w:week,v:view,c:cat,q:'',day:uday,t:tab,ver:+(localStorage.getItem('tao-table-ver')||0)};
+      var sig={f:14,d:day,w:week,v:view,c:cat,q:'',day:uday,t:tab,ver:+(localStorage.getItem('tao-table-ver')||0)};
       if(JSON.stringify(sig)===JSON.stringify(snap.sig)){
         document.documentElement.dataset.theme=snap.theme==='night'?'night':'paper';
         var mc=document.querySelector('meta[name=theme-color]');
@@ -1189,43 +1189,32 @@ function renderDay(){
 
 /* ---------- render all ---------- */
 /* ---------- 校车 ---------- */
-/* 时刻来源：校园班车 / 高新校区线公示表（不含太湖路园区）。带 * 的时刻节假日仍开行；高新线双休按节假日表。 */
-var BUS_STOPS=['东区','西区','南区','先研院','高新校区'];
+/* 时刻来源：校园班车 / 高新校区线公示表。带 * 的时刻节假日仍开行；高新线双休按节假日表。仅东区/西区/高新校区，不含南区、先研院、太湖路。 */
+var BUS_STOPS=['东区','西区','高新校区'];
 var BUS_SVC=(function(){
   function tm(arr){return arr.map(function(s){return {m:minutesOf(s.replace('*','')),star:s.indexOf('*')>=0}})}
   function mins(a){return a.map(function(x){return x.m})}
   var svc=[];
   var campus=[
     ['东区','西区',['北区'],10,['7:30*','9:20','9:35','11:35*','12:15','13:30*','15:30','15:50','17:30*','17:50','18:40*','20:10','21:15*','22:10']],
-    ['西区','东区',['北区'],10,['7:40*','9:30','9:45','11:45*','12:25','13:40*','15:40','16:00','17:40*','18:00','18:50*','20:20','21:25*','22:20']],
-    ['南区','东区',[],20,['7:10','7:30*','8:00','8:30','9:00','12:05','13:20','13:40*','14:00','15:10','18:20','19:15*','20:45','21:50*','22:45']],
-    ['东区','南区',[],20,['7:30','8:30','11:35','11:45*','12:10','12:35','14:30','17:25','17:45*','18:10','19:00*','20:30','21:35*','22:30']],
-    ['南区','西区',['北区'],25,['7:10','7:30*','8:00','8:30','9:00','13:20','13:40*','14:00','15:10']],
-    ['西区','南区',['北区'],25,['7:35','11:35*','12:25','17:35*','18:00','18:50*','20:20','21:25*','22:20']]
+    ['西区','东区',['北区'],10,['7:40*','9:30','9:45','11:45*','12:25','13:40*','15:40','16:00','17:40*','18:00','18:50*','20:20','21:25*','22:20']]
   ];
   campus.forEach(function(r){
     var a=tm(r[4]);
     svc.push({from:r[0],to:r[1],via:r[2],dur:r[3],line:'校园班车',work:mins(a),hol:mins(a.filter(function(x){return x.star}))});
   });
   var G1=['6:40','8:00','9:35','12:50','14:30','16:00','18:30','22:05'];
-  var G2=['6:45','8:05','9:40','12:55','14:35','16:05','18:35','22:10'];
   var H1=['6:50','8:00','12:50','14:30','16:00','18:30','21:20','22:05'];
   var H2=['7:00','8:10','13:00','14:40','16:10','18:40','21:30','22:15'];
   var G1w=['8:00','13:40','16:00','21:50'];
-  var G2w=['8:05','13:45','16:05','21:55'];
   var H1w=['6:50','12:50','18:30','21:50'];
   var H2w=['7:00','13:00','18:40','22:00'];
   function gx(from,to,via,dur,w,h){svc.push({from:from,to:to,via:via,dur:dur,line:'高新校区线',work:mins(tm(w)),hol:mins(tm(h))})}
-  gx('高新校区','先研院',[],5,G1,G1w);
-  gx('高新校区','西区',['先研院'],35,G1,G1w);
-  gx('高新校区','东区',['先研院','西区'],45,G1,G1w);
-  gx('先研院','西区',[],30,G2,G2w);
-  gx('先研院','东区',['西区'],40,G2,G2w);
+  gx('高新校区','西区',[],35,G1,G1w);
+  gx('高新校区','东区',['西区'],45,G1,G1w);
   gx('东区','西区',[],10,H1,H1w);
-  gx('东区','先研院',['西区'],30,H1,H1w);
-  gx('东区','高新校区',['西区','先研院'],50,H1,H1w);
-  gx('西区','先研院',[],20,H2,H2w);
-  gx('西区','高新校区',['先研院'],40,H2,H2w);
+  gx('东区','高新校区',['西区'],50,H1,H1w);
+  gx('西区','高新校区',[],40,H2,H2w);
   return svc;
 })();
 var busFrom='西区',busTo='东区',busOverride=null,busShowAll=false;
@@ -1293,7 +1282,7 @@ function initBus(){
 }
 initBus();
 
-function bootSig(){return {f:13,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,t:ui.tab,ver:ver()}}
+function bootSig(){return {f:14,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,t:ui.tab,ver:ver()}}
 function saveSnapshot(){
   try{localStorage.setItem(SNAPKEY,JSON.stringify({sig:bootSig(),theme:settings().theme,app:$('.app').innerHTML}))}catch(e){}
 }

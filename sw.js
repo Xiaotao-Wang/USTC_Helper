@@ -1,4 +1,4 @@
-var VERSION = 'tao-table-v20';
+var VERSION = 'tao-table-v21';
 var ASSETS = [
   './',
   './index.html',

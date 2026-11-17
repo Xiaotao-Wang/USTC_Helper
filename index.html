@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="paper">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>小桃课表 · 离线课程表</title>
 <meta name="description" content="完全离线的课程表 PWA：添加到主屏幕即可使用，数据只存在本机，无需账号、无需上架。">
 <meta name="theme-color" content="#232C4E">
@@ -35,11 +35,11 @@
   --danger:#FF6B6B; --ok:#4ADE80; --now:#FF5A5F; --amber:#FFB224;
   --shadow:0 12px 32px rgba(0,0,0,.5); --shadow-sm:0 3px 10px rgba(0,0,0,.4);
 }
-*{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation}
+*{box-sizing:border-box;margin:0;padding:0;touch-action:pan-x pan-y}
 [hidden]{display:none !important}
-html{background:var(--bg);touch-action:manipulation}
+html{background:var(--bg);touch-action:pan-x pan-y}
 html,body{height:100%}
-body{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+body{touch-action:pan-x pan-y;-webkit-tap-highlight-color:transparent}
   font-family:var(--sans); color:var(--ink); background:var(--bg);
   -webkit-font-smoothing:antialiased; overflow:hidden;
   transition:background .35s,color .35s;

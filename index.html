@@ -618,7 +618,7 @@ input,select,textarea{font-family:inherit;color:inherit}
         <div><b>只需联网一次，之后整学期离线。</b><br>浏览器安全限制不允许本网页直接登录教务系统抓课表。正确做法：你在浏览器里用统一身份认证登录教务系统，让脚本或书签把课表一键回传导入这里。<b>本网页全程不接触你的账号密码</b>：密码只填在科大统一认证页，脚本用的是登录后浏览器里留下的会话，导入后数据只存本机。</div>
       </div>
       <a class="imp-go" id="impGoJw" href="https://jw.ustc.edu.cn/for-std/course-table" target="_blank" rel="noopener">打开教务系统 · 登录<small>不装软件：登录后在课表页点一下「回传课表」书签。装了脚本：登录后全自动，不用碰屏幕</small></a>
-      <div class="imp-go-note">两条路线任选其一，设置一次，之后每学期只登录一次。密码只填在科大统一认证页，本网页全程不接触。导入可撤销。</div>
+      <div class="imp-go-note">两条路线任选其一，设置一次，之后每学期只登录一次。密码只填在科大统一认证页，本网页全程不接触。导入可撤销。注意：回传要在 Safari 里完成；导入后点「复制课表给主屏幕 app」，再开主屏幕图标点「从剪贴板恢复」（苹果规定两者数据不互通）。</div>
       <div class="imp-tabs" id="impTabs">
         <button data-tab="auto" class="on">一键回传</button>
         <button data-tab="file">上传文件</button>
@@ -698,9 +698,10 @@ input,select,textarea{font-family:inherit;color:inherit}
 <div class="toast" id="toast" hidden><span id="toastMsg"></span><button id="toastAct" hidden></button></div>
 <div class="install-hint" id="installHint" hidden>
   <svg viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
-  <div>把课表装进手机：点 Safari 底部 <b>分享按钮</b> → <b>添加到主屏幕</b>。图标打开 Safari 版（与登录回传同一数据空间），断网也能用。</div>
+  <div>把课表装进手机：点 Safari 底部 <b>分享按钮</b> → <b>添加到主屏幕</b>。图标打开是全屏 app（无 Safari 栏）。苹果规定两者数据不互通：在 Safari 导入后点「复制课表」，主屏幕 app 里点「恢复」即可。断网也能用。</div>
   <button class="x" id="installClose" aria-label="关闭提示">✕</button>
 </div>
+<div class="install-hint" id="syncBar" hidden></div>
 
 <script type="text/plain" id="ustcUserScript">
 // ==UserScript==
@@ -892,7 +893,7 @@ var STORE='tao-table-v1', UIKEY='tao-table-ui-v1', SNAPKEY='tao-table-snap-v1', 
 
 function seed(){
   return {
-    settings:{semesterName:'2026 秋季学期',startDate:'2026-09-07',totalWeeks:18,slotsPerDay:12,showWeekend:true,theme:'paper'},
+    settings:{semesterName:'2026 秋季学期',startDate:'2026-09-07',totalWeeks:18,slotsPerDay:12,showWeekend:true,theme:'paper',demo:true},
     courses:[
       {id:uid(),name:'数据结构与算法',teacher:'张明远',room:'3教201',day:1,start:1,len:2,w1:1,w2:16,wt:'all',cat:'core',note:'带好习题册，第 11 周随堂测验'},
       {id:uid(),name:'大学物理（下）',teacher:'李慧',room:'2教105',day:1,start:3,len:2,w1:1,w2:16,wt:'all',cat:'sci',note:''},
@@ -920,7 +921,8 @@ function sanitize(raw){
     totalWeeks:clamp(parseInt(s.totalWeeks,10)||d.totalWeeks,12,24),
     slotsPerDay:[8,10,12,13].indexOf(+s.slotsPerDay)>=0?+s.slotsPerDay:d.slotsPerDay,
     showWeekend:s.showWeekend!==false,
-    theme:s.theme==='night'?'night':'paper'
+    theme:s.theme==='night'?'night':'paper',
+    demo:s.demo===true
   };
   var courses=[];
   raw.courses.forEach(function(c){
@@ -939,8 +941,12 @@ function clamp(n,a,b){return Math.max(a,Math.min(b,n))}
 var state=null;
 try{state=sanitize(JSON.parse(localStorage.getItem(STORE)))}catch(e){}
 if(!state){state=seed();persist()}
+if(state&&typeof state.settings.demo!=='boolean'){
+  var dsig=function(cs){return cs.map(function(c){return [c.name,c.teacher,c.day,c.start,c.len,c.w1,c.w2].join('|')}).sort().join(';')};
+  state.settings.demo=dsig(state.courses)===dsig(seed().courses);
+}
 function ver(){try{return +(localStorage.getItem(VERKEY)||0)}catch(e){return 0}}
-function persist(){try{localStorage.setItem(STORE,JSON.stringify(state));localStorage.setItem(VERKEY,String(ver()+1))}catch(e){}}
+function persist(){try{localStorage.setItem(STORE,JSON.stringify(state));localStorage.setItem(VERKEY,String(ver()+1))}catch(e){}updateSyncBar()}
 var ui={view:'week',cat:'all',q:'',day:1};
 try{var u=JSON.parse(localStorage.getItem(UIKEY));if(u){ui.view=u.view==='day'?'day':'week';ui.cat=(u.cat==='all'||CATS[u.cat])?u.cat:'all';ui.day=clamp(parseInt(u.day,10)||1,1,7)}}catch(e){}
 function persistUI(){try{localStorage.setItem(UIKEY,JSON.stringify({view:ui.view,cat:ui.cat,day:ui.day}))}catch(e){}}
@@ -1291,6 +1297,7 @@ $('#editorSave').addEventListener('click',function(){
   }else{
     state.courses.push(Object.assign({id:uid()},f));
   }
+  state.settings.demo=false;
   persist();closeSheets();renderAll();
   toast(editingId?'已保存修改':'已添加「'+f.name+'」');
 });
@@ -1954,7 +1961,7 @@ function refreshScriptState(){
   try{b=JSON.parse(localStorage.getItem('tao-bm-ready'))}catch(e){}
   var standalone=window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches;
   el.hidden=false;
-  if(standalone){el.className='s-note warn';el.textContent='当前是全屏版：苹果把它的数据和 Safari 隔离，回传进不来。请删掉主屏幕旧图标，用 Safari「添加到主屏幕」重加（新图标打开 Safari 版）。';return;}
+  if(standalone){el.className='s-note warn';el.textContent='当前是主屏幕全屏版：回传脚本/书签只能在 Safari 里运行。请在 Safari 打开本网址完成导入，点「复制课表给主屏幕 app」，再回这里恢复。';var rb=document.createElement('button');rb.className='btn btn-sm';rb.style.marginTop='8px';rb.textContent='从剪贴板恢复（覆盖本机）';rb.addEventListener('click',restoreSync);el.appendChild(rb);return;}
   if(r&&r.t&&Date.now()-r.t<7*86400000){el.className='s-note';el.textContent='回传脚本已就绪（v'+(r.v||'?')+'）：点上方「打开教务系统」，登录后全自动，无需任何手动操作。';}
   else if(b&&b.t&&Date.now()-b.t<30*86400000){el.className='s-note';el.textContent='书签回传已就绪：点上方「打开教务系统」登录，进「我的课表」页后点地址栏里的「回传课表」书签。';}
   else{el.className='s-note warn';el.textContent='还没设置回传：先完成下面任一条路线的一次设置（书签不装软件 / 脚本全自动），再点上方按钮跳转，否则跳过去也不会有任何反应。';}
@@ -2116,7 +2123,7 @@ $('#impConfirm').addEventListener('click',function(){
       day:clamp(c.day,1,7),start:clamp(c.start,1,slots),len:clamp(c.len,1,slots),w1:clamp(c.w1,1,weeks),w2:clamp(Math.max(c.w2,c.w1),1,weeks),
       wt:['all','odd','even'].indexOf(c.wt)>=0?c.wt:'all',cat:CATS[c.cat]?c.cat:'core',note:String(c.note||'').slice(0,120)};
   });
-  state.settings.semesterName=sem;state.settings.startDate=start;state.settings.totalWeeks=weeks;state.settings.slotsPerDay=slots;
+  state.settings.semesterName=sem;state.settings.startDate=start;state.settings.totalWeeks=weeks;state.settings.slotsPerDay=slots;state.settings.demo=false;
   state.courses=impMode==='replace'?incoming:state.courses.concat(incoming);
   state=sanitize(state)||state;
   persist();viewWeek=clamp(currentWeek(),1,weeks);
@@ -2128,6 +2135,48 @@ $('#impConfirm').addEventListener('click',function(){
   });
   resetImpWizard();
 });
+/* ---------- 剪贴板桥：Safari 与主屏幕 app 数据不互通，用系统剪贴板搬一次 ---------- */
+function isStandaloneMode(){return window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches}
+function syncPayload(){
+  var d={};[STORE,VERKEY,UIKEY].forEach(function(k){var v=localStorage.getItem(k);if(v!==null)d[k]=v});
+  return JSON.stringify({format:'tao-sync',v:1,data:d});
+}
+function copySync(){
+  var p=syncPayload();
+  function ok(){toast('已复制：打开主屏幕的小桃课表，点「从剪贴板恢复」')}
+  function bad(){toast('复制失败：请重试，或改用导入页的粘贴路线')}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(p).then(ok,bad)}else{bad()}
+}
+function restoreSync(){
+  if(!navigator.clipboard||!navigator.clipboard.readText){toast('此环境读不了剪贴板：请用导入→粘贴');return}
+  navigator.clipboard.readText().then(function(txt){
+    var j=null;try{j=JSON.parse(txt)}catch(e){}
+    if(!j||j.format!=='tao-sync'||!j.data||!j.data[STORE]){toast('剪贴板里没有课表数据：先在 Safari 版点「复制课表给主屏幕 app」');return}
+    var st=null;try{st=JSON.parse(j.data[STORE])}catch(e){}
+    if(!st||!Array.isArray(st.courses)){toast('剪贴板数据损坏：请回 Safari 重新复制');return}
+    [STORE,VERKEY,UIKEY].forEach(function(k){if(typeof j.data[k]==='string')localStorage.setItem(k,j.data[k])});
+    location.reload();
+  },function(){toast('读剪贴板被拒绝：请在弹窗里允许粘贴后重试')});
+}
+function updateSyncBar(){
+  var bar=$('#syncBar');if(!bar)return;
+  var sa=isStandaloneMode(),n=state.courses.length,demo=state.settings.demo===true,hide=false;
+  try{hide=!!sessionStorage.getItem('taoSyncHide')}catch(e){}
+  bar.innerHTML='';
+  if(!sa&&!demo&&n>0&&!hide){
+    bar.hidden=false;
+    var t=document.createElement('div');t.textContent='浏览器和主屏幕 app 的数据不互通。';bar.appendChild(t);
+    var b=document.createElement('button');b.className='btn btn-sm';b.textContent='复制课表给主屏幕 app';b.addEventListener('click',copySync);bar.appendChild(b);
+    var x=document.createElement('button');x.className='x';x.textContent='✕';x.setAttribute('aria-label','关闭提示');
+    x.addEventListener('click',function(){try{sessionStorage.setItem('taoSyncHide','1')}catch(e){}bar.hidden=true});bar.appendChild(x);
+  }else if(sa&&demo){
+    bar.hidden=false;
+    var t2=document.createElement('div');t2.textContent='当前是示例课表：在 Safari 导入真实课表并点「复制」后，这里一键恢复。';bar.appendChild(t2);
+    var b2=document.createElement('button');b2.className='btn btn-sm';b2.textContent='从剪贴板恢复';b2.addEventListener('click',restoreSync);bar.appendChild(b2);
+  }else{bar.hidden=true}
+  if(!bar.hidden){var ih=$('#installHint');if(ih)ih.hidden=true}
+}
+window.__taoSync={update:updateSyncBar,copy:copySync,restore:restoreSync,dbg:function(){return{sa:isStandaloneMode(),n:state.courses.length}}};
 window.__taoParse=parseTimetable;
 window.__taoImp={get:function(){return impCourses},parse:doParse,open:openImport};
 
@@ -2224,6 +2273,7 @@ $('#installClose').addEventListener('click',function(){
   $('#installHint').hidden=true;
   try{localStorage.setItem('tao-install-hint','1')}catch(e){}
 });
+updateSyncBar();
 
 /* ---------- timers & init ---------- */
 setInterval(function(){updateNow();renderNext()},30000);

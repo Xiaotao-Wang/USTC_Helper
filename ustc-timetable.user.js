@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         USTC 课表自动回传 → 小桃课表
 // @namespace    tao-table
-// @version      3.1.0
+// @version      3.2.1
 // @description  登录科大教务后全自动：自动进课表页、自动读表、自动跳回「小桃课表」导入。不读取账号密码。
 // @match        *://jw.ustc.edu.cn/*
 // @match        *://mis.teach.ustc.edu.cn/*
@@ -14,7 +14,7 @@
   'use strict';
   var APP = 'https://xiaotao-wang.github.io/USTC_Helper/';
   if (location.hostname === 'xiaotao-wang.github.io') {
-    try { localStorage.setItem('tao-script-ready', JSON.stringify({ v: '3.1.0', t: Date.now() })); } catch (e) {}
+    try { localStorage.setItem('tao-script-ready', JSON.stringify({ v: '3.2.1', t: Date.now() })); } catch (e) {}
     return;
   }
   function dayish(t) { return /(星期|周|礼拜)[一二三四五六日天]/.test(t || ''); }
@@ -84,7 +84,28 @@
   function isIOS() {
     return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
+  function hasList() {
+    return findTables().some(function (x) { return (x.tb.textContent || '').indexOf('日期时间地点人员') >= 0; });
+  }
+  function findListSwitch() {
+    var els = [].slice.call(document.querySelectorAll('a,button,li,span,div'));
+    for (var i = 0; i < els.length; i++) {
+      var t = (els[i].textContent || '').trim();
+      if (t.length <= 6 && /^(列表|列表视图|课表列表|列表模式)$/.test(t) && els[i].offsetParent !== null) return els[i];
+    }
+    return null;
+  }
+  function switchRecent() { var t = +ssGet('taoListSwitch') || 0; return Date.now() - t < 60000; }
+  function tryListView() {
+    if (hasList() || switchRecent()) return false;
+    var sw = findListSwitch();
+    if (!sw) return false;
+    ssSet('taoListSwitch', String(Date.now()));
+    sw.click();
+    return true;
+  }
   function returnNow() {
+    if (tryListView()) { toast('已切到列表视图，正在读取课表…'); setTimeout(returnNow, 1800); return; }
     var list = findTables();
     if (!list.length) { alert('未在本页检测到课表表格。\n请先打开「我的课表 / 选课结果 / 课表查询」页面，等表格显示后再点本按钮。'); return; }
     var html = cleanHTML(list.slice(0, 3).map(function (x) { return x.tb.outerHTML; }).join('\n'));
@@ -108,9 +129,10 @@
   function autoTick() {
     var has = findTables().length > 0;
     if (has) {
+      if (tryListView()) return;
       var last = +ssGet('taoAutoRet') || 0;
       if (Date.now() - last < 300000) return;
-      if (Date.now() - lastMut < 1200) return;
+      if (Date.now() - lastMut < 1200) { setTimeout(autoTick, 1300); return; }
       toast('已登录，自动读取课表并回传小桃课表…');
       returnNow();
       return;

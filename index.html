@@ -634,6 +634,7 @@ input,select,textarea{font-family:inherit;color:inherit}
             <li>打开书签列表，长按刚存的书签 →「编辑」→ 把网址整段删掉、粘贴刚复制的代码，名字改成 <code>回传课表</code>。</li>
             <li>点上方「打开教务系统」登录，进「我的课表」页 → 在地址栏输入 <code>回传课表</code> → 点选那条书签。课表自动跳回本页并导入。</li>
           </ol>
+          <div class="imp-actions"><button class="btn btn-ghost btn-sm" id="impBmDone">我已存好书签，可以跳转了</button></div>
           <div class="s-note">书签是 Safari 自带功能，不算装软件，也不会弹任何保存/下载框。苹果的限制：不装扩展就做不到「登录后零操作」，这条路线登录后只需点书签这一次。</div>
         </div>
         <div class="imp-route">
@@ -705,7 +706,7 @@ input,select,textarea{font-family:inherit;color:inherit}
 // ==UserScript==
 // @name         USTC 课表自动回传 → 小桃课表
 // @namespace    tao-table
-// @version      3.1.0
+// @version      3.2.1
 // @description  登录科大教务后全自动：自动进课表页、自动读表、自动跳回「小桃课表」导入。不读取账号密码。
 // @match        *://jw.ustc.edu.cn/*
 // @match        *://mis.teach.ustc.edu.cn/*
@@ -718,7 +719,7 @@ input,select,textarea{font-family:inherit;color:inherit}
   'use strict';
   var APP = 'https://xiaotao-wang.github.io/USTC_Helper/';
   if (location.hostname === 'xiaotao-wang.github.io') {
-    try { localStorage.setItem('tao-script-ready', JSON.stringify({ v: '3.1.0', t: Date.now() })); } catch (e) {}
+    try { localStorage.setItem('tao-script-ready', JSON.stringify({ v: '3.2.1', t: Date.now() })); } catch (e) {}
     return;
   }
   function dayish(t) { return /(星期|周|礼拜)[一二三四五六日天]/.test(t || ''); }
@@ -788,7 +789,28 @@ input,select,textarea{font-family:inherit;color:inherit}
   function isIOS() {
     return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
+  function hasList() {
+    return findTables().some(function (x) { return (x.tb.textContent || '').indexOf('日期时间地点人员') >= 0; });
+  }
+  function findListSwitch() {
+    var els = [].slice.call(document.querySelectorAll('a,button,li,span,div'));
+    for (var i = 0; i < els.length; i++) {
+      var t = (els[i].textContent || '').trim();
+      if (t.length <= 6 && /^(列表|列表视图|课表列表|列表模式)$/.test(t) && els[i].offsetParent !== null) return els[i];
+    }
+    return null;
+  }
+  function switchRecent() { var t = +ssGet('taoListSwitch') || 0; return Date.now() - t < 60000; }
+  function tryListView() {
+    if (hasList() || switchRecent()) return false;
+    var sw = findListSwitch();
+    if (!sw) return false;
+    ssSet('taoListSwitch', String(Date.now()));
+    sw.click();
+    return true;
+  }
   function returnNow() {
+    if (tryListView()) { toast('已切到列表视图，正在读取课表…'); setTimeout(returnNow, 1800); return; }
     var list = findTables();
     if (!list.length) { alert('未在本页检测到课表表格。\n请先打开「我的课表 / 选课结果 / 课表查询」页面，等表格显示后再点本按钮。'); return; }
     var html = cleanHTML(list.slice(0, 3).map(function (x) { return x.tb.outerHTML; }).join('\n'));
@@ -812,9 +834,10 @@ input,select,textarea{font-family:inherit;color:inherit}
   function autoTick() {
     var has = findTables().length > 0;
     if (has) {
+      if (tryListView()) return;
       var last = +ssGet('taoAutoRet') || 0;
       if (Date.now() - last < 300000) return;
-      if (Date.now() - lastMut < 1200) return;
+      if (Date.now() - lastMut < 1200) { setTimeout(autoTick, 1300); return; }
       toast('已登录，自动读取课表并回传小桃课表…');
       returnNow();
       return;
@@ -1492,6 +1515,112 @@ function cellToCourses(text,rs){
   });
   return out;
 }
+function ustcGridBlocks(text){
+  var lines=String(text).split('\n').map(function(s){return s.trim()}).filter(Boolean);
+  var codeRe=/^[A-Za-z0-9]{3,}\.[0-9]{2}\s*\[[\d.]+\]$/;
+  var timeRe=/^\d{1,2}:\d{2}\s*[-–—~]?\s*\d{1,2}:\d{2}$/;
+  var blocks=[],cur=null;
+  lines.forEach(function(ln){
+    if(timeRe.test(ln))return;
+    if(codeRe.test(ln)){cur=[];blocks.push(cur);return;}
+    if(cur)cur.push(ln);
+  });
+  var out=[];
+  blocks.forEach(function(L){
+    if(L.length<3)return;
+    var m=(L[2]||'').match(/^(.*?)\s+([\d,，]+)$/);
+    if(!m)return;
+    var segs=ustcWeekSegments(m[1]);
+    var slots=m[2].split(/[,，]/).map(function(x){return parseInt(x,10)}).filter(function(n){return !isNaN(n)&&n>=1&&n<=13});
+    if(!segs.length||!slots.length)return;
+    out.push({name:L[0],teacher:(L[1]||'').replace(/[（(]主讲[)）]/g,''),room:L.slice(3).join(' '),segs:segs,slots:slots});
+  });
+  return out;
+}
+function parseUstcGridLinear(lines){
+  var dayNames={'星期日':7,'星期天':7,'星期一':1,'星期二':2,'星期三':3,'星期四':4,'星期五':5,'星期六':6};
+  var colDay=[],i;
+  for(i=0;i<lines.length&&i<10;i++){var dn=dayNames[lines[i]];if(dn)colDay.push(dn);else if(colDay.length)break;}
+  if(colDay.length<5)return null;
+  var rowRe=/^(上午|下午|晚上|中午)?\t?(\d{1,2})\t/;
+  var timeRe=/^\d{1,2}:\d{2}\s*[-–—~]?\s*\d{1,2}:\d{2}$/;
+  var rows=[],row=null,cur=null,started=false;
+  function flushCell(){
+    if(!cur||!row)return;
+    var blocks=ustcGridBlocks(cur.join('\n'));cur=null;
+    if(blocks.length)row.cells.push(blocks);
+  }
+  for(i=0;i<lines.length;i++){
+    var ln=lines[i],rm=ln.match(rowRe);
+    if(rm&&+rm[2]>=1&&+rm[2]<=13){
+      flushCell();
+      var fields=ln.split('\t'),off=rm[1]?2:1,lead=0;
+      while(off+lead<fields.length&&fields[off+lead]==='')lead++;
+      row={slot:+rm[2],lead:lead,cells:[]};rows.push(row);cur=[];
+      if(off+lead<fields.length)cur.push(fields[off+lead]);
+      started=true;continue;
+    }
+    if(!started)continue;
+    if(timeRe.test(ln)){flushCell();cur=[];continue;}
+    if(cur)cur.push(ln);
+  }
+  flushCell();
+  rows=rows.filter(function(r){return r.cells.length});
+  if(!rows.length)return null;
+  function mk(b,day){
+    var rd=parseDay(b.room);if(rd)day=rd;
+    if(!day)return[];
+    var st=Math.min.apply(null,b.slots),en=Math.max.apply(null,b.slots);
+    return b.segs.map(function(sg){
+      return{name:b.name.slice(0,30),teacher:b.teacher.slice(0,20),room:b.room.slice(0,20),
+        day:day,start:st,len:en-st+1,w1:sg.w1,w2:sg.w2,wt:sg.wt,cat:guessCat(b.name),note:''};
+    });
+  }
+  function clash(a,b){
+    if(a.day!==b.day)return false;
+    if(a.start>b.start+b.len-1||b.start>a.start+a.len-1)return false;
+    if(a.w1>b.w2||b.w1>a.w2)return false;
+    if(a.wt==='odd'&&b.wt==='even')return false;
+    if(a.wt==='even'&&b.wt==='odd')return false;
+    return true;
+  }
+  var fixed=[],amb=[];
+  rows.forEach(function(r){
+    if(r.cells.length===1||r.cells.length+r.lead>=colDay.length){
+      r.cells.forEach(function(blocks,ci){blocks.forEach(function(b){fixed=fixed.concat(mk(b,colDay[r.lead+ci]||0))})});
+    }else amb.push(r);
+  });
+  var warnings=[];
+  amb.forEach(function(r){
+    var n=r.cells.length,avail=[];
+    for(var c=r.lead;c<colDay.length;c++)avail.push(c);
+    var best=null,bestScore=1e9,bestShift=1e9;
+    function combos(start,k,pick){
+      if(pick.length===k){
+        var cs=[],shift=0;
+        r.cells.forEach(function(blocks,ci){shift+=pick[ci]-(r.lead+ci);blocks.forEach(function(b){cs=cs.concat(mk(b,colDay[pick[ci]]))})});
+        var score=0;
+        cs.forEach(function(a){fixed.forEach(function(b){if(clash(a,b))score++});cs.forEach(function(b){if(a!==b&&clash(a,b))score++})});
+        r.cells.forEach(function(blocks,ci){
+          var single=blocks.every(function(b){return b.segs.length===1&&b.segs[0].w1===b.segs[0].w2});
+          if(single&&pick[ci]!==0&&pick[ci]!==colDay.length-1)score+=2;
+        });
+        if(score<bestScore||(score===bestScore&&shift<bestShift)){bestScore=score;bestShift=shift;best=cs;}
+        return;
+      }
+      for(var c=start;c<avail.length;c++)combos(c+1,k,pick.concat([avail[c]]));
+    }
+    combos(0,n,[]);
+    if(best){
+      fixed=fixed.concat(best);
+      var names=[];r.cells.forEach(function(blocks){blocks.forEach(function(b){if(names.indexOf(b.name)<0)names.push(b.name)})});
+      warnings.push('第 '+r.slot+' 节复制时丢了空列，'+names.join('、')+' 的星期几是按冲突最少推断的：请在预览核对这几门课（脚本/书签自动读不会丢列）');
+    }
+  });
+  if(!fixed.length)return null;
+  var maxW2=0;fixed.forEach(function(c){if(c.w2>maxW2)maxW2=c.w2});
+  return{courses:fixed,warnings:warnings,source:'ustc-grid',meta:{slotsPerDay:13,totalWeeks:clamp(maxW2,12,24)}};
+}
 function parseGridTable(table){
   var rows=[].slice.call(table.rows);if(rows.length<2)return null;
   var occ={},r,c,i;
@@ -1521,6 +1650,18 @@ function parseGridTable(table){
     for(var di=0;di<dayCols.length;di++){
       var col=dayCols[di],nd=occ[r+','+col];
       if(!nd||nd.r!==r||!nd.text)continue;
+      var gb=ustcGridBlocks(nd.text);
+      if(gb.length){
+        gb.forEach(function(b){
+          var st=Math.min.apply(null,b.slots),en=Math.max.apply(null,b.slots);
+          var rd=parseDay(b.room),day=rd||dayCol[col];
+          b.segs.forEach(function(sg){
+            courses.push({name:b.name.slice(0,30),teacher:b.teacher.slice(0,20),room:b.room.slice(0,20),
+              day:day,start:st,len:en-st+1,w1:sg.w1,w2:sg.w2,wt:sg.wt,cat:guessCat(b.name),note:''});
+          });
+        });
+        continue;
+      }
       cellToCourses(nd.text,nd.rs).forEach(function(p){
         p.day=dayCol[col];p.start=sn;p.len=nd.rs;
         if(p._warn)warnings.push(p._warn);
@@ -1587,9 +1728,15 @@ function parseUstcLinear(lines){
 function parseText(txt){
   var raw=String(txt);
   var lines=raw.split(/\r?\n/).map(function(s){return s.trim()}).filter(Boolean);
-  if(lines.length>1&&lines.some(function(ln){return ln.indexOf('\t')>=0})){
+  var tabLines=lines.filter(function(ln){return ln.indexOf('\t')>=0}).length;
+  if(tabLines>=2&&tabLines*2>=lines.length){
     var html='<table>'+lines.map(function(ln,ri){return '<tr>'+ln.split('\t').map(function(cc){return (ri===0?'<th>':'<td>')+esc(cc)+(ri===0?'</th>':'</td>')}).join('')+'</tr>'}).join('')+'</table>';
     var gr=parseTimetable(html);if(gr.courses.length)return gr;
+  }
+  var gl=parseUstcGridLinear(lines);
+  if(gl&&gl.courses.length)return gl;
+  if(!gl&&/(^|\n)星期[日一二三四五六天](\n|$)/.test(raw)&&/(上午|下午|晚上)\t\d/.test(raw)){
+    return{courses:[],warnings:['认出了教务周课表网格，但没解析出课程：请连星期表头和节次行整张复制，或改用脚本/书签自动读'],source:'text'};
   }
   var lin=parseUstcLinear(lines);
   if(lin){var lr=parseTimetable(lin);if(lr.courses.length)return lr;}
@@ -1730,6 +1877,18 @@ var USTC_SCRIPT=$('#ustcUserScript')?$('#ustcUserScript').textContent.trim():'';
 function taoBookmarkReturn(){
   var APP='https://xiaotao-wang.github.io/USTC_Helper/';
   var IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  function hasList(){return [].slice.call(document.querySelectorAll('table')).some(function(t){return (t.textContent||'').indexOf('日期时间地点人员')>=0})}
+  function findSw(){
+    var els=[].slice.call(document.querySelectorAll('a,button,li,span,div'));
+    for(var i=0;i<els.length;i++){var t=(els[i].textContent||'').trim();
+      if(t.length<=6&&/^(列表|列表视图|课表列表|列表模式)$/.test(t)&&els[i].offsetParent!==null)return els[i];}
+    return null;
+  }
+  var swT=0;try{swT=+sessionStorage.getItem('taoBmSwitch')||0}catch(e){}
+  if(!hasList()&&Date.now()-swT>60000){
+    var sw=findSw();
+    if(sw){try{sessionStorage.setItem('taoBmSwitch',String(Date.now()))}catch(e){}sw.click();setTimeout(function(){taoBookmarkReturn()},1800);return}
+  }
   function dayish(t){return /(星期|周|礼拜)[一二三四五六日天]/.test(t||'')}
   var ts=[].slice.call(document.querySelectorAll('table'));
   try{[].slice.call(document.querySelectorAll('iframe')).forEach(function(f){if(f.contentDocument)ts=ts.concat([].slice.call(f.contentDocument.querySelectorAll('table')))})}catch(e){}
@@ -1790,14 +1949,32 @@ function setImpTab(name){
     $('#impPaneAuto').classList.toggle('ios',/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1));}
 }
 function refreshScriptState(){
-  var el=$('#impScriptState'),r=null;
+  var el=$('#impScriptState'),r=null,b=null;
   try{r=JSON.parse(localStorage.getItem('tao-script-ready'))}catch(e){}
+  try{b=JSON.parse(localStorage.getItem('tao-bm-ready'))}catch(e){}
   var standalone=window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches;
   el.hidden=false;
   if(standalone){el.className='s-note warn';el.textContent='当前是全屏版：苹果把它的数据和 Safari 隔离，回传进不来。请删掉主屏幕旧图标，用 Safari「添加到主屏幕」重加（新图标打开 Safari 版）。';return;}
-  if(r&&r.t&&Date.now()-r.t<7*86400000){el.className='s-note';el.textContent='回传脚本已就绪（v'+(r.v||'?')+'）：登录后全自动，无需任何手动操作。';}
-  else{el.className='s-note warn';el.textContent='未检测到回传脚本：不装也能用——上面「书签回传」不装任何软件，登录后点一次书签即可；装脚本才能登录后全自动。';}
+  if(r&&r.t&&Date.now()-r.t<7*86400000){el.className='s-note';el.textContent='回传脚本已就绪（v'+(r.v||'?')+'）：点上方「打开教务系统」，登录后全自动，无需任何手动操作。';}
+  else if(b&&b.t&&Date.now()-b.t<30*86400000){el.className='s-note';el.textContent='书签回传已就绪：点上方「打开教务系统」登录，进「我的课表」页后点地址栏里的「回传课表」书签。';}
+  else{el.className='s-note warn';el.textContent='还没设置回传：先完成下面任一条路线的一次设置（书签不装软件 / 脚本全自动），再点上方按钮跳转，否则跳过去也不会有任何反应。';}
 }
+$('#impGoJw').addEventListener('click',function(e){
+  var r=null,b=null;
+  try{r=JSON.parse(localStorage.getItem('tao-script-ready'))}catch(err){}
+  try{b=JSON.parse(localStorage.getItem('tao-bm-ready'))}catch(err){}
+  var ok=(r&&r.t&&Date.now()-r.t<7*86400000)||(b&&b.t&&Date.now()-b.t<30*86400000);
+  if(!ok){
+    e.preventDefault();
+    toast('先完成下面任一条路线的一次设置，再点这个按钮跳转');
+    var pane=$('#impPaneAuto');if(pane.scrollIntoView)pane.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+});
+$('#impBmDone').addEventListener('click',function(){
+  try{localStorage.setItem('tao-bm-ready',JSON.stringify({t:Date.now()}))}catch(e){}
+  refreshScriptState();
+  toast('好：点上方「打开教务系统」登录，进课表页后点地址栏的「回传课表」书签');
+});
 function openImport(tab){resetImpWizard();setImpTab(tab||'auto');openSheet('#importSheet');}
 function renderImpList(){
   var html='';

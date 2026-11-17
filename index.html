@@ -29,15 +29,15 @@
   --rowH:54px; --axisW:52px;
 }
 [data-theme="night"]{
-  --bg:#000000; --bg2:#1C1C1E; --surface:#1C1C1E; --surface2:#2C2C2E;
-  --ink:#FFFFFF; --ink2:#98989D; --line:rgba(84,84,88,.6); --line2:rgba(84,84,88,.95);
-  --navy:#0A84FF; --navy2:#409CFF; --navy3:#123055; --navy-ink:#FFFFFF; --seg-on:#636366;
+  --bg:#111318; --bg2:#171A20; --surface:#1B1E25; --surface2:#242832;
+  --ink:#F4F5F7; --ink2:#9AA0AC; --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.16);
+  --navy:#0A84FF; --navy2:#409CFF; --navy3:#12233C; --navy-ink:#FFFFFF; --seg-on:#3A3F4A;
   --cat-core:#0A84FF; --cat-major:#FF9F0A; --cat-lab:#FF453A;
   --cat-sci:#30D158; --cat-lang:#BF5AF2; --cat-sport:#64D2FF;
   --cc0:#0A84FF; --cc1:#FF9F0A; --cc2:#30D158; --cc3:#BF5AF2;
   --cc4:#FF453A; --cc5:#64D2FF; --cc6:#FF375F; --cc7:#5E5CE6;
   --danger:#FF453A; --ok:#30D158; --now:#FF453A; --amber:#FF9F0A;
-  --shadow:0 8px 24px rgba(0,0,0,.5); --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow:0 8px 24px rgba(0,0,0,.45); --shadow-sm:0 1px 2px rgba(0,0,0,.35);
 }
 *{box-sizing:border-box;margin:0;padding:0;touch-action:pan-x pan-y}
 [hidden]{display:none !important}
@@ -81,9 +81,10 @@ input,select,textarea{font-family:inherit;color:inherit}
 .week-range{font-size:11px;color:var(--ink2);font-variant-numeric:tabular-nums}
 .chip-this{flex:none;font-size:15px;font-weight:600;padding:4px 8px;border-radius:99px;color:var(--navy);transition:background .2s}
 .chip-this:hover{background:var(--surface2)}
-.seg{flex:none;display:flex;background:var(--surface2);border-radius:9px;padding:2px}
-.seg button{flex:1;height:30px;border-radius:7px;font-size:13px;font-weight:600;color:var(--ink2);transition:background .2s,color .2s}
-.seg button.on{background:var(--seg-on);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.view-toggle{flex:none;display:flex;margin-left:auto;background:var(--surface2);border-radius:9px;padding:2px}
+.view-toggle button{width:30px;height:26px;display:grid;place-items:center;border-radius:7px;color:var(--ink2);transition:background .2s,color .2s}
+.view-toggle button.on{background:var(--navy);color:var(--navy-ink)}
+.view-toggle svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
 .next-card{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:14px;cursor:pointer;
   background:var(--surface);border-left:4px solid var(--c,var(--navy));
@@ -429,10 +430,10 @@ input,select,textarea{font-family:inherit;color:inherit}
       </div>
       <button class="week-nav" id="nextWeek" aria-label="下一周">›</button>
       <button class="chip-this" id="thisWeekBtn" hidden>本周</button>
-    </div>
-    <div class="seg" id="viewSeg" role="tablist" aria-label="视图切换">
-      <button data-view="week" class="on" role="tab">周视图</button>
-      <button data-view="day" role="tab">日视图</button>
+      <div class="view-toggle" id="viewSeg" role="tablist" aria-label="视图切换">
+        <button data-view="week" class="on" role="tab" aria-label="周视图"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
+        <button data-view="day" role="tab" aria-label="日视图"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button>
+      </div>
     </div>
     <div class="next-card" id="nextCard" role="button" tabindex="0" aria-label="今日课程提示"></div>
     <div class="search-row" id="searchRow" hidden>
@@ -472,11 +473,11 @@ input,select,textarea{font-family:inherit;color:inherit}
       var cats={all:1,core:1,major:1,lab:1,sci:1,lang:1,sport:1};
       var cat=(u&&cats[u.cat])?u.cat:'all';
       var uday=Math.max(1,Math.min(7,(u&&parseInt(u.day,10))||1));
-      var sig={f:9,d:day,w:week,v:view,c:cat,q:'',day:uday,ver:+(localStorage.getItem('tao-table-ver')||0)};
+      var sig={f:10,d:day,w:week,v:view,c:cat,q:'',day:uday,ver:+(localStorage.getItem('tao-table-ver')||0)};
       if(JSON.stringify(sig)===JSON.stringify(snap.sig)){
         document.documentElement.dataset.theme=snap.theme==='night'?'night':'paper';
         var mc=document.querySelector('meta[name=theme-color]');
-        if(mc)mc.content=snap.theme==='night'?'#000000':'#F2F2F7';
+        if(mc)mc.content=snap.theme==='night'?'#111318':'#F2F2F7';
         document.querySelector('.app').innerHTML=snap.app;
         var sr=document.getElementById('searchRow');if(sr)sr.hidden=true;
         var sb=document.getElementById('searchBtn');if(sb)sb.classList.remove('on');
@@ -1109,7 +1110,7 @@ function renderDay(){
 }
 
 /* ---------- render all ---------- */
-function bootSig(){return {f:9,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,ver:ver()}}
+function bootSig(){return {f:10,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,ver:ver()}}
 function saveSnapshot(){
   try{localStorage.setItem(SNAPKEY,JSON.stringify({sig:bootSig(),theme:settings().theme,app:$('.app').innerHTML}))}catch(e){}
 }
@@ -1350,7 +1351,7 @@ $('#sTheme').addEventListener('click',function(e){
 function applyTheme(t){
   if(settings().theme!==t){settings().theme=t;persist()}
   document.documentElement.dataset.theme=t;
-  document.querySelector('meta[name=theme-color]').content=t==='night'?'#000000':'#F2F2F7';
+  document.querySelector('meta[name=theme-color]').content=t==='night'?'#111318':'#F2F2F7';
   $('#themeIcon').innerHTML=t==='night'
     ?'<path d="M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z"/>'
     :'<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/>';

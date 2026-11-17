@@ -79,8 +79,6 @@ input,select,textarea{font-family:inherit;color:inherit}
 .week-label .wk{font-size:17px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
 .week-label .wk em{font-style:normal;color:var(--navy)}
 .week-range{font-size:11px;color:var(--ink2);font-variant-numeric:tabular-nums}
-.chip-this{flex:none;font-size:15px;font-weight:600;padding:4px 8px;border-radius:99px;color:var(--navy);transition:background .2s}
-.chip-this:hover{background:var(--surface2)}
 .view-toggle{flex:none;display:flex;margin-left:auto;background:var(--surface2);border-radius:9px;padding:2px}
 .view-toggle button{width:30px;height:26px;display:grid;place-items:center;border-radius:7px;color:var(--ink2);transition:background .2s,color .2s}
 .view-toggle button.on{background:var(--navy);color:var(--navy-ink)}
@@ -470,7 +468,6 @@ input,select,textarea{font-family:inherit;color:inherit}
         <div class="week-range" id="weekRange">—</div>
       </div>
       <button class="week-nav" id="nextWeek" aria-label="下一周">›</button>
-      <button class="chip-this" id="thisWeekBtn" hidden>本周</button>
       <div class="view-toggle" id="viewSeg" role="tablist" aria-label="视图切换">
         <button data-view="week" class="on" role="tab" aria-label="周视图"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
         <button data-view="day" role="tab" aria-label="日视图"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button>
@@ -542,7 +539,7 @@ input,select,textarea{font-family:inherit;color:inherit}
       var cats={all:1,core:1,major:1,lab:1,sci:1,lang:1,sport:1};
       var cat=(u&&cats[u.cat])?u.cat:'all';
       var uday=Math.max(1,Math.min(7,(u&&parseInt(u.day,10))||1));
-      var sig={f:11,d:day,w:week,v:view,c:cat,q:'',day:uday,t:tab,ver:+(localStorage.getItem('tao-table-ver')||0)};
+      var sig={f:12,d:day,w:week,v:view,c:cat,q:'',day:uday,t:tab,ver:+(localStorage.getItem('tao-table-ver')||0)};
       if(JSON.stringify(sig)===JSON.stringify(snap.sig)){
         document.documentElement.dataset.theme=snap.theme==='night'?'night':'paper';
         var mc=document.querySelector('meta[name=theme-color]');
@@ -1041,13 +1038,12 @@ ui.day=clamp(ui.day||todayDow,1,7);
 
 /* ---------- header ---------- */
 function renderHeader(){
-  var cw=currentWeek(), tw=settings().totalWeeks;
+  var tw=settings().totalWeeks;
   var dates=weekDates(viewWeek);
   $('#weekTitle').innerHTML='第 <em>'+viewWeek+'</em> 周';
   $('#weekRange').textContent=fmtDate(dates[0])+' – '+fmtDate(dates[6]);
   $('#prevWeek').disabled=viewWeek<=1;
   $('#nextWeek').disabled=viewWeek>=tw;
-  $('#thisWeekBtn').hidden=viewWeek===clamp(cw,1,tw);
 }
 function todayCourseList(){
   var cw=currentWeek();
@@ -1063,7 +1059,7 @@ function renderNext(){
   var card=$('#nextCard'), list=todayCourseList();
   if(!list){
     card.style.setProperty('--c','var(--ink2)');
-    card.innerHTML='<div class="nc-time serif">'+viewWeek+'<small>浏览中</small></div><div class="nc-body"><div class="nc-name">第 '+viewWeek+' 周</div><div class="nc-meta">点「本周」回到今天</div></div>';
+    card.innerHTML='<div class="nc-time serif">'+viewWeek+'<small>浏览中</small></div><div class="nc-body"><div class="nc-name">第 '+viewWeek+' 周</div><div class="nc-meta">轻点卡片回到今天</div></div><span class="nc-count" style="background:color-mix(in srgb,var(--navy) 14%,var(--surface));color:var(--navy)">回到今天 ›</span>';
     card.dataset.cid='';
     return;
   }
@@ -1284,7 +1280,7 @@ function initBus(){
 }
 initBus();
 
-function bootSig(){return {f:11,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,t:ui.tab,ver:ver()}}
+function bootSig(){return {f:12,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,t:ui.tab,ver:ver()}}
 function saveSnapshot(){
   try{localStorage.setItem(SNAPKEY,JSON.stringify({sig:bootSig(),theme:settings().theme,app:$('.app').innerHTML}))}catch(e){}
 }
@@ -1485,7 +1481,6 @@ $('#nextCard').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key=
 function goThisWeek(){viewWeek=clamp(currentWeek(),1,settings().totalWeeks);renderAll();scrollToToday()}
 $('#prevWeek').addEventListener('click',function(){viewWeek=clamp(viewWeek-1,1,settings().totalWeeks);renderAll()});
 $('#nextWeek').addEventListener('click',function(){viewWeek=clamp(viewWeek+1,1,settings().totalWeeks);renderAll()});
-$('#thisWeekBtn').addEventListener('click',goThisWeek);
 $('#viewSeg').addEventListener('click',function(e){
   var b=e.target.closest('button');if(!b)return;
   ui.view=b.dataset.view;persistUI();renderAll();

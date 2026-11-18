@@ -163,6 +163,8 @@ input,select,textarea{font-family:inherit;color:inherit}
 .event span{font-size:9px;color:var(--ink2);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
 [data-theme="night"] .event{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .day-card.ev .dc-bar{background:repeating-linear-gradient(180deg,var(--c) 0 4px,transparent 4px 7px)}
+.g-day .g-tag{font-style:normal;font-size:8.5px;font-weight:700;color:var(--navy);background:var(--navy3);border-radius:4px;padding:0 3px;margin-top:1px;display:inline-block}
+.day-pill .p-tag{font-style:normal;font-size:8px;font-weight:700;color:var(--navy);background:var(--navy3);border-radius:4px;padding:0 3px}
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .now-line{position:absolute;left:0;right:0;top:calc(var(--ny,0) * var(--rowH));z-index:3;height:2px;background:var(--now);pointer-events:none;box-shadow:0 0 8px color-mix(in srgb,var(--now) 60%,transparent)}
 .now-line::before{content:"";position:absolute;left:-1px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--now)}
@@ -552,7 +554,7 @@ input,select,textarea{font-family:inherit;color:inherit}
       var cats={all:1,core:1,major:1,lab:1,sci:1,lang:1,sport:1};
       var cat=(u&&cats[u.cat])?u.cat:'all';
       var uday=Math.max(1,Math.min(7,(u&&parseInt(u.day,10))||1));
-      var sig={f:16,d:day,w:week,v:view,c:cat,q:'',day:uday,t:tab,ver:+(localStorage.getItem('tao-table-ver')||0)};
+      var sig={f:17,d:day,w:week,v:view,c:cat,q:'',day:uday,t:tab,ver:+(localStorage.getItem('tao-table-ver')||0)};
       if(JSON.stringify(sig)===JSON.stringify(snap.sig)){
         document.documentElement.dataset.theme=snap.theme==='night'?'night':'paper';
         var mc=document.querySelector('meta[name=theme-color]');
@@ -966,7 +968,7 @@ var STORE='tao-table-v1', UIKEY='tao-table-ui-v1', SNAPKEY='tao-table-snap-v1', 
 
 function seed(){
   return {
-    settings:{semesterName:'2026 秋季学期',startDate:'2026-09-07',totalWeeks:18,slotsPerDay:12,showWeekend:true,theme:'paper',demo:true},
+    settings:{semesterName:'2026 秋季学期',startDate:'2026-08-31',totalWeeks:20,slotsPerDay:13,showWeekend:true,theme:'paper',demo:true},
     courses:[
       {id:uid(),name:'数据结构与算法',teacher:'张明远',room:'3教201',day:1,start:1,len:2,w1:1,w2:16,wt:'all',cat:'core',note:'带好习题册，第 11 周随堂测验'},
       {id:uid(),name:'大学物理（下）',teacher:'李慧',room:'2教105',day:1,start:3,len:2,w1:1,w2:16,wt:'all',cat:'sci',note:''},
@@ -1032,6 +1034,13 @@ if(state&&typeof state.settings.demo!=='boolean'){
   var dsig=function(cs){return cs.map(function(c){return [c.name,c.teacher,c.day,c.start,c.len,c.w1,c.w2].join('|')}).sort().join(';')};
   state.settings.demo=dsig(state.courses)===dsig(seed().courses);
 }
+/* 旧版误把新生上课日 9/7 当第1周；官方老生第1周周一=8/31，纠正旧存储 */
+if(state.settings.startDate==='2026-09-07'){
+  state.settings.startDate='2026-08-31';
+  if(state.settings.slotsPerDay===12)state.settings.slotsPerDay=13;
+  if(state.settings.totalWeeks===18)state.settings.totalWeeks=20;
+  persist();
+}
 function ver(){try{return +(localStorage.getItem(VERKEY)||0)}catch(e){return 0}}
 function persist(){try{localStorage.setItem(STORE,JSON.stringify(state));localStorage.setItem(VERKEY,String(ver()+1))}catch(e){}updateSyncBar()}
 var ui={view:'week',cat:'all',q:'',day:1,tab:'table'};
@@ -1051,6 +1060,27 @@ function activeInWeek(c,w){
   return true;
 }
 function visibleDays(){return settings().showWeekend?[1,2,3,4,5,6,7]:[1,2,3,4,5]}
+/* 中科大 2026 秋季学期官方教学日历（教务处 teach.ustc.edu.cn/calendar/20135.html）：
+   老生 8/30 注册、8/31 上课=第1周周一，共20教学周；9/7 是新生上课日（第2周）。
+   CAL_HOL=*休（放假停课）；CAL_MAKEUP=*补X课（该日按"被补日期"的周次+星期上课）。 */
+var CAL_HOL={
+  '2026-09-25':'中秋节','2026-09-26':'中秋假','2026-09-27':'中秋假',
+  '2026-10-01':'国庆节','2026-10-02':'国庆假','2026-10-03':'国庆假','2026-10-04':'国庆假',
+  '2026-10-05':'国庆假','2026-10-06':'国庆假','2026-10-07':'国庆假',
+  '2027-01-01':'元旦','2027-01-02':'元旦假','2027-01-03':'元旦假'
+};
+var CAL_MAKEUP={'2026-09-20':'2026-09-25','2026-10-10':'2026-10-06'};
+function dowOf(d){return (d.getDay()+6)%7+1}
+function schedFor(d){
+  var iso=isoDate(d);
+  if(CAL_HOL[iso])return {week:weekOfDate(d),dow:dowOf(d),hol:CAL_HOL[iso]};
+  if(CAL_MAKEUP[iso]){var t=parseISO(CAL_MAKEUP[iso]);return {week:weekOfDate(t),dow:dowOf(t),makeup:CAL_MAKEUP[iso]}}
+  return {week:weekOfDate(d),dow:dowOf(d)};
+}
+function schedTag(info){
+  if(info.makeup)return '补'+DOW[info.dow-1]+'课';
+  return '';
+}
 function slotRange(c){var a=SLOTS[c.start-1],b=SLOTS[Math.min(c.start+c.len-1,SLOTS.length)-1];return a[0]+'–'+b[1]}
 function minutesOf(t){var p=t.split(':');return +p[0]*60+ +p[1]}
 function matches(c){
@@ -1104,7 +1134,8 @@ function renderHeader(){
     var days=visibleDays();
     if(days.indexOf(ui.day)<0)ui.day=days[0];
     $('#weekTitle').innerHTML='周<em>'+DOW[ui.day-1].slice(1)+'</em>';
-    $('#weekRange').textContent=fmtDate(dates[ui.day-1])+' · 第 '+viewWeek+' 周';
+    var hi=schedFor(dates[ui.day-1]);
+    $('#weekRange').textContent=fmtDate(dates[ui.day-1])+' · 第 '+viewWeek+' 周'+(schedTag(hi)?' · '+schedTag(hi):'');
     $('#prevWeek').disabled=(viewWeek<=1&&ui.day<=days[0]);
     $('#nextWeek').disabled=(viewWeek>=tw&&ui.day>=days[days.length-1]);
     $('#prevWeek').setAttribute('aria-label','上一天');
@@ -1125,7 +1156,8 @@ function todayCourseList(){
   var idx=-1;
   for(var i=0;i<7;i++){if(dates[i].getTime()===now.getTime()){idx=i+1;break}}
   if(idx<0)return null;
-  return state.courses.filter(function(c){return c.day===idx&&activeInWeek(c,viewWeek)&&c.start<=settings().slotsPerDay})
+  var info=schedFor(now);
+  return state.courses.filter(function(c){return c.day===info.dow&&activeInWeek(c,info.week)&&c.start<=settings().slotsPerDay})
     .sort(function(a,b){return a.start-b.start});
 }
 function renderNext(){
@@ -1183,25 +1215,26 @@ function renderGrid(){
   g.style.setProperty('--rows',rows);
   var html='<div class="g-corner"></div>';
   days.forEach(function(d){
-    var isT=d===todayIdx, we=d>=6;
-    html+='<div class="g-day'+(isT?' today':'')+(we?' weekend':'')+'"><b>'+DOW[d-1]+'</b><span>'+fmtDate(dates[d-1])+'</span></div>';
+    var isT=d===todayIdx, we=d>=6, info=schedFor(dates[d-1]), tag=schedTag(info);
+    html+='<div class="g-day'+(isT?' today':'')+(we?' weekend':'')+'"><b>'+DOW[d-1]+'</b><span>'+fmtDate(dates[d-1])+'</span>'+(tag?'<i class="g-tag">'+esc(tag)+'</i>':'')+'</div>';
   });
   html+='<div class="g-axis" style="grid-row:2 / span '+rows+'">';
   for(var s=1;s<=rows;s++)html+='<div class="tick"><b>'+s+'</b><span class="t0">'+SLOTS[s-1][0]+'</span><span class="t1">'+SLOTS[s-1][1]+'</span></div>';
   html+='</div>';
   days.forEach(function(d){
-    var isT=d===todayIdx, we=d>=6;
+    var isT=d===todayIdx, we=d>=6, info=schedFor(dates[d-1]);
     html+='<div class="g-col'+(isT?' today':'')+(we?' weekend':'')+'" data-day="'+d+'" style="grid-row:2 / span '+rows+'">';
     for(var s=1;s<=rows;s++)html+='<div class="g-cell" style="--slot:'+s+'"></div>';
-    state.courses.forEach(function(c){
-      if(c.day!==d||!activeInWeek(c,viewWeek)||c.start>rows)return;
+    if(!info.hol)state.courses.forEach(function(c){
+      if(c.day!==info.dow||!activeInWeek(c,info.week)||c.start>rows)return;
       html+=courseBlockHTML(c,!matches(c));
     });
     (state.events||[]).forEach(function(e){
-      if(e.day!==d||!activeInWeek(e,viewWeek))return;
+      if(e.once){if(e.date!==isoDate(dates[d-1]))return}
+      else if(info.hol||e.day!==info.dow||!activeInWeek(e,info.week))return;
       html+=eventBlockHTML(e);
     });
-    if(isT)html+='<div class="now-line" id="nowLine" hidden><em></em></div>';
+    if(isT&&!info.hol)html+='<div class="now-line" id="nowLine" hidden><em></em></div>';
     html+='</div>';
   });
   g.innerHTML=html;
@@ -1230,12 +1263,14 @@ function renderDay(){
   if(days.indexOf(ui.day)<0)ui.day=days[0];
   var ph='';
   days.forEach(function(d){
-    ph+='<button class="day-pill'+(d===ui.day?' on':'')+(d===todayIdx?' today':'')+'" data-day="'+d+'">'+DOW[d-1]+'<span>'+fmtDate(dates[d-1])+'</span></button>';
+    var pi=schedFor(dates[d-1]), ptag=schedTag(pi);
+    ph+='<button class="day-pill'+(d===ui.day?' on':'')+(d===todayIdx?' today':'')+'" data-day="'+d+'">'+DOW[d-1]+'<span>'+fmtDate(dates[d-1])+'</span>'+(ptag?'<i class="p-tag">'+esc(ptag)+'</i>':'')+'</button>';
   });
   $('#dayPills').innerHTML=ph;
+  var info=schedFor(dates[ui.day-1]);
   var items=[];
-  state.courses.forEach(function(c){
-    if(c.day!==ui.day||!activeInWeek(c,viewWeek)||c.start>settings().slotsPerDay)return;
+  if(!info.hol)state.courses.forEach(function(c){
+    if(c.day!==info.dow||!activeInWeek(c,info.week)||c.start>settings().slotsPerDay)return;
     var dim=!matches(c);
     items.push({min:minutesOf(SLOTS[c.start-1][0]),html:'<div class="day-card'+(dim?' dim':'')+'" data-id="'+c.id+'" role="button" tabindex="0" style="--c:var('+colorOf(c)+')">'+
       '<div class="dc-time">'+SLOTS[c.start-1][0]+'<small>'+slotRange(c)+'</small></div><div class="dc-bar"></div>'+
@@ -1245,13 +1280,14 @@ function renderDay(){
       (c.note?'<div class="dc-note">'+esc(c.note)+'</div>':'')+'</div></div>'});
   });
   (state.events||[]).forEach(function(e){
-    if(e.day!==ui.day||!activeInWeek(e,viewWeek))return;
+    if(e.once){if(e.date!==isoDate(dates[ui.day-1]))return}
+    else if(info.hol||e.day!==info.dow||!activeInWeek(e,info.week))return;
     items.push({min:minutesOf(e.start),html:eventDayCard(e)});
   });
   items.sort(function(a,b){return a.min-b.min});
   var html='';
   if(!items.length){
-    html='<div class="empty"><svg viewBox="0 0 96 96" fill="none"><rect x="14" y="18" width="68" height="62" rx="10" stroke="var(--line2)" stroke-width="2.5"/><path d="M14 34h68" stroke="var(--line2)" stroke-width="2.5"/><path d="M30 12v10M66 12v10" stroke="var(--amber)" stroke-width="3" stroke-linecap="round"/><rect x="26" y="44" width="18" height="10" rx="3" fill="var(--amber)" opacity=".85"/><rect x="52" y="44" width="18" height="10" rx="3" stroke="var(--line2)" stroke-width="2"/><rect x="26" y="60" width="18" height="10" rx="3" stroke="var(--line2)" stroke-width="2"/><rect x="52" y="60" width="18" height="10" rx="3" stroke="var(--line2)" stroke-width="2"/></svg><p>'+DOW[ui.day-1]+'没有安排'+(ui.q||ui.cat!=='all'?'（或没有符合筛选的课程）':'')+'<br>点右下角 + 添加日程</p><button class="btn btn-sm" id="emptyAdd">添加日程</button></div>';
+    html='<div class="empty"><svg viewBox="0 0 96 96" fill="none"><rect x="14" y="18" width="68" height="62" rx="10" stroke="var(--line2)" stroke-width="2.5"/><path d="M14 34h68" stroke="var(--line2)" stroke-width="2.5"/><path d="M30 12v10M66 12v10" stroke="var(--amber)" stroke-width="3" stroke-linecap="round"/><rect x="26" y="44" width="18" height="10" rx="3" fill="var(--amber)" opacity=".85"/><rect x="52" y="44" width="18" height="10" rx="3" stroke="var(--line2)" stroke-width="2"/><rect x="26" y="60" width="18" height="10" rx="3" stroke="var(--line2)" stroke-width="2"/><rect x="52" y="60" width="18" height="10" rx="3" stroke="var(--line2)" stroke-width="2"/></svg><p>'+(DOW[ui.day-1]+'没有安排'+(ui.q||ui.cat!=='all'?'（或没有符合筛选的课程）':'')+'<br>点右下角 + 添加日程')+'</p><button class="btn btn-sm" id="emptyAdd">添加日程</button></div>';
   }else{
     html=items.map(function(x){return x.html}).join('');
   }
@@ -1353,7 +1389,7 @@ function initBus(){
 }
 initBus();
 
-function bootSig(){return {f:16,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,t:ui.tab,ver:ver()}}
+function bootSig(){return {f:17,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,t:ui.tab,ver:ver()}}
 function saveSnapshot(){
   try{localStorage.setItem(SNAPKEY,JSON.stringify({sig:bootSig(),theme:settings().theme,app:$('.app').innerHTML}))}catch(e){}
 }

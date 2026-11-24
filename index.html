@@ -554,7 +554,7 @@ input,select,textarea{font-family:inherit;color:inherit}
       var cats={all:1,core:1,major:1,lab:1,sci:1,lang:1,sport:1};
       var cat=(u&&cats[u.cat])?u.cat:'all';
       var uday=Math.max(1,Math.min(7,(u&&parseInt(u.day,10))||1));
-      var sig={f:17,d:day,w:week,v:view,c:cat,q:'',day:uday,t:tab,ver:+(localStorage.getItem('tao-table-ver')||0)};
+      var sig={f:18,d:day,w:week,v:view,c:cat,q:'',day:uday,t:tab,ver:+(localStorage.getItem('tao-table-ver')||0)};
       if(JSON.stringify(sig)===JSON.stringify(snap.sig)){
         document.documentElement.dataset.theme=snap.theme==='night'?'night':'paper';
         var mc=document.querySelector('meta[name=theme-color]');
@@ -671,7 +671,17 @@ input,select,textarea{font-family:inherit;color:inherit}
         <button class="btn btn-danger btn-sm" id="sReset">恢复示例数据</button>
       </div>
       <input type="file" id="sFile" accept=".json,application/json" hidden>
-      <div class="s-note">所有数据只保存在这台设备的浏览器里，不上传任何服务器。换设备前请先「导出备份」。</div>
+      <div class="s-note">数据默认只保存在这台设备的浏览器里；只有点下面云同步的「上传 / 拉取」才联网，其余时候不发任何网络请求。换设备前也可「导出备份」。</div>
+    </div>
+    <div class="s-group"><h3>云同步</h3>
+      <div class="s-row"><div class="s-label">同步名<small>一人一个名字，互不覆盖</small></div><input type="text" id="ghSlot" maxlength="20" placeholder="如 xiaotao" autocomplete="off" spellcheck="false"></div>
+      <div class="s-row"><div class="s-label">GitHub 令牌<small>只存本机，不上传别处</small></div><input type="password" id="ghToken" placeholder="fine-grained token" autocomplete="off" spellcheck="false"></div>
+      <div class="s-actions">
+        <button class="btn btn-ghost btn-sm" id="ghPush">上传本课表</button>
+        <button class="btn btn-ghost btn-sm" id="ghPull">拉取云课表</button>
+      </div>
+      <div class="s-note" id="ghState"></div>
+      <div class="s-note">设置一次：① github.com 新建仓库 <code>tao-table-sync</code>，勾选 Private；② Settings → Developer settings → Fine-grained tokens → New token：Repository access 只选这个仓库，Permissions 里 Contents 设 Read and write，生成后复制；③ 令牌贴上面、同步名填自己的。两三人共用：令牌私聊发给对方，各填各的同步名。注意：拿到令牌的人能读写这个仓库里全部存档。</div>
     </div>
     <div class="s-group"><h3>离线使用</h3>
       <div class="offline-card">
@@ -1389,7 +1399,7 @@ function initBus(){
 }
 initBus();
 
-function bootSig(){return {f:17,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,t:ui.tab,ver:ver()}}
+function bootSig(){return {f:18,d:isoDate(new Date()),w:viewWeek,v:ui.view,c:ui.cat,q:ui.q,day:ui.day,t:ui.tab,ver:ver()}}
 function saveSnapshot(){
   try{localStorage.setItem(SNAPKEY,JSON.stringify({sig:bootSig(),theme:settings().theme,app:$('.app').innerHTML}))}catch(e){}
 }
@@ -1748,6 +1758,9 @@ function fillSettings(){
   var ov=$('#sOverflow');
   ov.hidden=!hidden;
   if(hidden)ov.textContent='注意：有 '+hidden+' 节课因节数/周末设置当前被隐藏，数据并未丢失，改回设置即可显示。';
+  $('#ghSlot').value=localStorage.getItem('tao-sync-slot')||'';
+  $('#ghToken').value=localStorage.getItem('tao-gh-token')||'';
+  ghState();
 }
 $('#settingsBtn').addEventListener('click',function(){fillSettings();openSheet('#settingsSheet')});
 $('#sName').addEventListener('input',function(){settings().semesterName=this.value.trim()||'我的学期';persist();renderHeader()});
@@ -2556,6 +2569,77 @@ function updateSyncBar(){
   if(!bar.hidden){var ih=$('#installHint');if(ih)ih.hidden=true}
 }
 window.__taoSync={update:updateSyncBar,copy:copySync,restore:restoreSync,dbg:function(){return{sa:isStandaloneMode(),n:state.courses.length}}};
+/* ---------- 云同步：只有点上传/拉取才联网，存自己 GitHub 私有仓库，每人一个存档位 ---------- */
+var GH_REPO='Xiaotao-Wang/tao-table-sync';
+function ghCfg(){return{slot:(localStorage.getItem('tao-sync-slot')||'').trim(),token:(localStorage.getItem('tao-gh-token')||'').trim()}}
+function ghB64e(s){var b=new TextEncoder().encode(s),o='',i;for(i=0;i<b.length;i+=0x8000)o+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(o)}
+function ghB64d(s){var bin=atob(s.replace(/\s/g,'')),b=new Uint8Array(bin.length),i;for(i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);return new TextDecoder().decode(b)}
+function ghApi(method,path,body){
+  return fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+path,{
+    method:method,
+    headers:{Authorization:'Bearer '+ghCfg().token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},
+    body:body?JSON.stringify(body):undefined
+  }).then(function(r){return r.json().catch(function(){return{}}).then(function(j){return{ok:r.ok,status:r.status,j:j}})});
+}
+function ghErr(res){
+  if(res.status===401||res.status===403)return '令牌无效或过期：去 GitHub 重新生成一个再填';
+  if(res.status===404)return '没找到仓库或存档：确认私有仓库名是 tao-table-sync，且这个同步名上传过';
+  if(res.status===409||res.status===422)return '云端刚被别的设备改过：先拉取再上传';
+  return 'GitHub 返回异常（'+res.status+'）：重试一次，本机数据不受影响';
+}
+function ghNetErr(){return '连不上 GitHub：检查网络后重试，本机数据不受影响'}
+function ghSlotOk(){var s=ghCfg().slot;if(!/^[\w-]{1,20}$/.test(s)){toast('同步名只用字母/数字/下划线/横线，最长 20 位');return false}return true}
+function ghState(){
+  var el=$('#ghState');if(!el)return;
+  var c=ghCfg(),last=localStorage.getItem('tao-sync-last')||'还没同步过';
+  el.textContent=(c.slot&&c.token)?('同步名 '+c.slot+' · '+last+' · 只有点按钮才联网'):'未配置：填同步名和令牌（步骤见下），不填则完全离线。';
+}
+function ghPush(){
+  if(!ghSlotOk())return;
+  if(!ghCfg().token){toast('先填 GitHub 令牌（设置步骤见下方）');return}
+  var b=$('#ghPush');b.disabled=true;b.textContent='上传中…';
+  function done(){b.disabled=false;b.textContent='上传本课表'}
+  ghApi('GET','sync/'+ghCfg().slot+'.json').then(function(res){
+    if(!res.ok&&res.status!==404)throw res;
+    return ghApi('PUT','sync/'+ghCfg().slot+'.json',{message:'tao-sync '+ghCfg().slot,content:ghB64e(syncPayload()),sha:res.ok&&res.j.sha?res.j.sha:undefined});
+  }).then(function(res){
+    if(!res.ok)throw res;
+    localStorage.setItem('tao-sync-last','上传于 '+new Date().toLocaleString('zh-CN',{hour12:false}));
+    ghState();toast('已上传到云端：同步名 '+ghCfg().slot);done();
+  }).catch(function(e){toast(e&&e.status?ghErr(e):ghNetErr());done()});
+}
+function ghPull(){
+  if(!ghSlotOk())return;
+  if(!ghCfg().token){toast('先填 GitHub 令牌（设置步骤见下方）');return}
+  var b=$('#ghPull');b.disabled=true;b.textContent='拉取中…';
+  function done(){b.disabled=false;b.textContent='拉取云课表'}
+  ghApi('GET','sync/'+ghCfg().slot+'.json').then(function(res){
+    if(!res.ok)throw res;
+    var j=JSON.parse(ghB64d(res.j.content||''));
+    if(!j||j.format!=='tao-sync'||!j.data||!j.data[STORE])throw{msg:'云端数据格式不对：先在另一台设备上传一次'};
+    var st=JSON.parse(j.data[STORE]);
+    if(!st||!Array.isArray(st.courses))throw{msg:'云端课表数据损坏：回另一台设备重新上传'};
+    var prev=JSON.parse(JSON.stringify(state));
+    state=sanitize(st)||state;
+    persist();viewWeek=clamp(currentWeek(),1,settings().totalWeeks);
+    closeSheets();renderAll();
+    localStorage.setItem('tao-sync-last','拉取于 '+new Date().toLocaleString('zh-CN',{hour12:false}));
+    ghState();
+    toast('已拉取云课表：'+state.courses.length+' 节课','撤销',function(){
+      state=prev;persist();viewWeek=clamp(currentWeek(),1,settings().totalWeeks);renderAll();toast('已撤销拉取');
+    });
+    done();
+  }).catch(function(e){toast(e&&e.status?ghErr(e):(e&&e.msg?e.msg:ghNetErr()));done()});
+}
+$('#ghSlot').addEventListener('change',function(){
+  var v=this.value.trim();
+  if(v&&!/^[\w-]{1,20}$/.test(v)){toast('同步名只用字母/数字/下划线/横线，最长 20 位');this.value=localStorage.getItem('tao-sync-slot')||'';return}
+  localStorage.setItem('tao-sync-slot',v);ghState();
+});
+$('#ghToken').addEventListener('change',function(){localStorage.setItem('tao-gh-token',this.value.trim());ghState()});
+$('#ghPush').addEventListener('click',ghPush);
+$('#ghPull').addEventListener('click',ghPull);
+window.__taoCloud={push:ghPush,pull:ghPull,cfg:ghCfg,state:ghState};
 window.__taoParse=parseTimetable;
 window.__taoImp={get:function(){return impCourses},parse:doParse,open:openImport};
 
